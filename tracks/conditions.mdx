@@ -1,7 +1,7 @@
 ---
-title: "Track Conditions: Time, Weather, and Flag-Based Light Triggers"
+title: "Track Conditions: Time, Weather, and Racing-Flag Triggers"
 sidebarTitle: "Conditions"
-description: "Define time-of-day, weather, and flag-based conditions for track lights and material adjustments using the CSP CONDITION_X section."
+description: "Define named CONDITION_X blocks driven by time, sun angle, weather, or racing flags to control when CSP track lights turn on or change colour."
 ---
 
 Conditions are named 0–1 values that CSP evaluates every frame. They act as gates for `LIGHT_X`, `LIGHT_SERIES_X`, and `MATERIAL_ADJUSTMENT_X` blocks — when a condition value is `1` the associated lights or material properties are fully active; when `0` they are off. Conditions live in `[CONDITION_X]` sections (numbered 0–74 for track-specific conditions; 75–99 are reserved for the shared `common/conditions.ini` file) and are referenced by their `NAME` field in other sections.
@@ -267,20 +267,23 @@ The `common/conditions.ini` file defines a standard library of conditions that a
 | Name | Description |
 |---|---|
 | `NIGHT_SMOOTH` | Active at sun angle ≥ 88°, with `LAG = 0.97` for a gradual on/off. |
-| `NIGHT_SHARP` | Same trigger as `NIGHT_SMOOTH` but with `LAG = 0` (instant). |
-| `NIGHT_SMOOTH_HEATING` | Same as `NIGHT_SMOOTH` plus `SIMULATE_HEATING = 0.7`. |
-| `NIGHT_SLOW_HEATING` | Turns on over 30 minutes (`LAG_DELAY_ON = 1800`). Good for HID floodlights. |
+| `NIGHT_SHARP` | Same trigger as `NIGHT_SMOOTH` but with `LAG = 0` (instant snap). |
+| `NIGHT_SMOOTH_HEATING` | Same LUT and lag as `NIGHT_SMOOTH` — use when you only need the smooth ramp. |
+| `NIGHT_SLOW_HEATING` | Turns on over 30 minutes (`LAG_DELAY_ON = 1800`) with `SIMULATE_HEATING = 0.7`. Good for HID floodlights. |
 | `ALWAYS_ON` | Constant `INPUT = ONE` — lights always active. |
-| `ALL_DAYS` | Active at reduced power during the day, full power at night. |
-| `SHARP_SUN_A` / `SMOOTH_SUN_A` | Activate slightly before `NIGHT_SMOOTH` (at 85°). Good for indoor lights. |
-| `RACING_FLAG` | Maps current race flag integer to an RGB colour output. |
-| `HAZARDS` | Fast 4 Hz double-flash, synced. |
+| `ALL_DAYS` | Active at a reduced level during the day, full power at night (`INPUT = SUN`). |
+| `ALL_DAYS_ALT` | Like `ALL_DAYS` but with higher daytime brightness values. |
+| `SHARP_SUN_A` / `SMOOTH_SUN_A` | Activate slightly before `NIGHT_SMOOTH` (at sun angle 85°). Good for indoor lights. |
+| `SHARP_SUN_B` / `SMOOTH_SUN_B` | Same threshold as `NIGHT_SMOOTH` (88°), sharp and smooth variants. |
+| `RACING_FLAG` | Maps current race flag integer to an RGB colour output via `INPUT = FLAG_TYPE`. |
+| `HAZARDS` | 4 Hz double-flash, synced — for hazard warning lights. |
 | `FLAME_FLICKERING` | Irregular 5 Hz flicker with noise — realistic flame effect. |
 | `COLORFULNESS` | Colour-cycling condition for disco/RGB lighting effects. |
-| `SEASON_SUMMER_NORTH` | Active in Northern-hemisphere summer (YEAR_PROGRESS ~ 0.45–0.7). |
+| `SEASON_SUMMER_NORTH` | Active in Northern-hemisphere summer (YEAR_PROGRESS ~ 0.1–0.9). |
+| `SEASON_SUMMER_2_NORTH` | Secondary summer window (YEAR_PROGRESS ~ 0.45–0.7). |
 | `SEASON_WINTER_NORTH` | Active in Northern-hemisphere winter. |
 | `SEASON_AUTUMN_NORTH` | Active in Northern-hemisphere autumn. |
-| `SEASON_MUD_NORTH` | Active in spring mud season. |
+| `SEASON_MUD_NORTH` | Active in spring and late-autumn mud season. |
 
 ---
 

@@ -1,5 +1,5 @@
 ---
-title: "Digital Instruments and Odometer Configuration"
+title: "Digital Instruments and Dashboard Odometer Configuration"
 sidebarTitle: "Instruments"
 description: "Configure digital dashboard displays, speedometers, odometers, and custom emissive instrument indicators for Assetto Corsa cars with CSP."
 ---
@@ -16,7 +16,7 @@ This section controls the behaviour of the core analog instruments: how quickly 
 [INSTRUMENTS]
 SPEED_LAG   = 0.7
 SPEED_LIMIT = 270
-RPM_LAG     = 0
+SPEED_FIX   = 1
 ```
 
 <ParamField path="SPEED_LAG" type="float 0–1">
@@ -27,16 +27,20 @@ RPM_LAG     = 0
   Maximum reading of the analog speedometer in km/h. The needle is mapped linearly from 0 to this value. Ensure this is at or above the car's actual top speed to avoid the needle wrapping around.
 </ParamField>
 
-<ParamField path="RPM_LAG" type="float 0–1">
-  Same smoothing factor applied to the tachometer needle. Most modern cars use `0` (electronic tachometer). Older cars with impulse tachos benefit from a small value like `0.1`–`0.2`.
-</ParamField>
-
 <ParamField path="SPEED_FIX" type="0 or 1">
   When `1`, synchronises the analog speedometer with the driveshaft speed rather than the absolute physics velocity. Produces a realistic pull-through on gear changes.
 </ParamField>
 
 <ParamField path="FUEL_SPLASH_MULT" type="float">
   Multiplier for the fuel-level jitter effect during cornering. Negative values invert the direction of the splash. The RUF Yellowbird uses `-0.0525` to match its gauge geometry.
+</ParamField>
+
+<ParamField path="HAZARDS_G_THRESHOLD" type="float">
+  G-force threshold above which the hazard lights automatically activate. Set to `-1` to disable the automatic hazard trigger.
+</ParamField>
+
+<ParamField path="RPM_VINTAGE" type="0 or 1">
+  When `1`, enables vintage impulse-style tachometer simulation (the needle bounces with each ignition pulse). Use for old racing cars with impulse tachos.
 </ParamField>
 
 ---
@@ -111,7 +115,7 @@ The digits are rendered as a UV-mapped overlay on the target mesh. `POSITION` an
 
 ## Real-World Example — RUF Yellowbird
 
-The Yellowbird's dashboard mesh is named `polymsh_detached20`. Both odometers share the same mesh but sit at different UV positions on the 1:1 texture.
+The Yellowbird's dashboard mesh is named `polymsh_detached20`. Both odometers share the same mesh but sit at different UV positions on the texture.
 
 ```ini
 [INSTRUMENTS]

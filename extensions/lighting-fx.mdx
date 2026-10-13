@@ -89,6 +89,7 @@ ENABLED=0
 FULL_RESOLUTION=1
 CARS_SHADOWS=2
 SPECTATING_CARS_SHADOWS=3
+CARS_IN_TRACK_SHADOWS=1
 HIGH_QUALITY_HEADLIGHT_SHADOWS=0
 DETAILED_SHADOWS_FROM_CARS_NEARBY=1
 ```
@@ -107,6 +108,10 @@ DETAILED_SHADOWS_FROM_CARS_NEARBY=1
 
 <ParamField path="SHADOWS/SPECTATING_CARS_SHADOWS" type="integer" default="3">
   Number of cars casting shadows during replays or when using free/track cameras. Range: **0 – 5**.
+</ParamField>
+
+<ParamField path="SHADOWS/CARS_IN_TRACK_SHADOWS" type="integer" default="1">
+  Includes car shadow casters in track light shadow passes. When disabled, all shadow sources are forced into static mode and car shadows will not appear under track lights. Leave enabled for correct dynamic shadow behaviour.
 </ParamField>
 
 <ParamField path="SHADOWS/HIGH_QUALITY_HEADLIGHT_SHADOWS" type="integer" default="0">
@@ -213,10 +218,24 @@ SCREENSHOTS_SCALE=1
 
 ```ini
 [LODS]
+COCKPIT_LR_FIX=1
+DRIVER_LR_FIX=0
 CARS_DISTANCE_MULT=1
 TRACK_DISTANCE_MULT=1
 TREES_DISTANCE_MULT=1
+FORCE_LOD_B=0
+FALLBACK_LODS=0
+LODLESS_LIMIT=40
+HIDE_DISTANT_DRIVERS=1
 ```
+
+<ParamField path="LODS/COCKPIT_LR_FIX" type="integer" default="1">
+  Forces low-resolution cockpit meshes for other cars when you are in first-person view. Prevents the distracting pop between high- and low-res cockpits as rival cars pass by.
+</ParamField>
+
+<ParamField path="LODS/DRIVER_LR_FIX" type="integer" default="0">
+  Forces low-resolution driver meshes for other cars in first-person view. May help performance in dense grids where many driver models are visible.
+</ParamField>
 
 <ParamField path="LODS/CARS_DISTANCE_MULT" type="number" default="1">
   Multiplier for the distance at which car LODs transition to lower-detail models. Range: **0.2 – 3.2**. Values above `1.0` keep high-detail models visible at greater distances, improving car appearance in replays at a GPU cost.
@@ -228,6 +247,22 @@ TREES_DISTANCE_MULT=1
 
 <ParamField path="LODS/TREES_DISTANCE_MULT" type="number" default="1">
   Multiplier for tree LODs. Range: **0.2 – 3.2**. **Requires a restart** to take effect.
+</ParamField>
+
+<ParamField path="LODS/FORCE_LOD_B" type="integer" default="0">
+  Forces all other cars to use LOD B (one step below full detail) when you are in first-person view. An aggressive optimisation that can improve frame rate in large grids at the cost of slightly reduced car detail.
+</ParamField>
+
+<ParamField path="LODS/FALLBACK_LODS" type="integer" default="0">
+  Adds extra collider-mesh-based LODs for very distant cars once `LODLESS_LIMIT` is reached. Materials will not match exactly but provide a reasonable stand-in for cars at extreme distances.
+</ParamField>
+
+<ParamField path="LODS/LODLESS_LIMIT" type="integer" default="40">
+  Maximum number of cars rendered without fallback LODs. Once this limit is reached, additional distant cars use the collider-mesh fallback (if `FALLBACK_LODS=1`). Range: **2 – 200**.
+</ParamField>
+
+<ParamField path="LODS/HIDE_DISTANT_DRIVERS" type="integer" default="1">
+  Hides the driver mesh (helmet, arms) for distant cars. Saves draw calls with minimal visual impact since driver geometry is not visible at range.
 </ParamField>
 
 ---

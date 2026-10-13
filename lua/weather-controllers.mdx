@@ -157,7 +157,7 @@ The module also exposes `weatherUtils.debugAware()`, which the base controller u
 
 ## Base Controller Reference
 
-The base controller (`weather-controllers/base/controller.lua`) is the canonical minimal implementation. It reads every available input, delegates rain intensity to the shared utility, and in `script.update` handles three cases: a live debug override, recovery from a debug override, and smooth Perlin-noise variation for missing humidity or pressure values.
+The base controller (`weather-controllers/base/controller.lua`) is the canonical minimal implementation. It reads every available input, delegates rain intensity to the shared utility, and in `script.update` handles two active cases: a live debug override forcing conditions from the CSP app, and recovery from a debug override that reloads all values from race parameters. A third branch for Perlin-noise-driven humidity and pressure variation exists in the code but is currently disabled (`fakeHumidityOrPressure` is always set to `false`).
 
 ```lua
 --------

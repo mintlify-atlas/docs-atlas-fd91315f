@@ -1,10 +1,10 @@
 ---
-title: "Car Configuration Overview for CSP Extension Config"
+title: "Car Configuration Overview for CSP INI Extension Files"
 sidebarTitle: "Overview"
-description: "Overview of car INI configuration in CSP: file placement, naming, available sections, and the guessed-config workflow for new cars."
+description: "Overview of car INI configuration in CSP: file placement, naming, available sections, and the guessed-config workflow for adding new cars."
 ---
 
-The Custom Shaders Patch (CSP) extends Assetto Corsa's car system through INI configuration files that live inside the game installation tree. Each file maps one-to-one to a car folder and can override lighting, materials, instruments, mirrors, and a wide range of visual features — all without touching the original KN5 asset. Changes are picked up immediately when the file is saved while AC is running, making iteration fast and painless.
+The Custom Shaders Patch (CSP) extends Assetto Corsa's car system through INI configuration files that live inside both the game installation tree and your Documents folder. Each file maps one-to-one to a car folder and can override lighting, materials, instruments, mirrors, and a wide range of visual features — all without touching the original KN5 asset. Changes are picked up immediately when the file is saved while AC is running, making iteration fast and painless.
 
 ## File Placement
 
@@ -36,10 +36,10 @@ CSP can auto-generate a starting-point config for any car by reading its `data/l
     Create the folder `%USERPROFILE%\Documents\Assetto Corsa\cfg\extension_cars_guessed\` if it does not exist.
   </Step>
   <Step title="Run Assetto Corsa with the target car">
-    Load any session with the car you want to configure. CSP will detect the empty trigger folder and write a guessed config named `<car_folder_name>.ini` into it.
+    Load any session with the car you want to configure. CSP will detect the trigger folder and write a guessed config named `<car_folder_name>.ini` into it.
   </Step>
   <Step title="Copy the guessed config to the extension directory">
-    Move or copy the generated file to `assettocorsa/extension/config/cars/` (inside an appropriate subdirectory such as `mods/`).
+    Move or copy the generated file to `%USERPROFILE%\Documents\Assetto Corsa\cfg\extension\config\cars\` (inside an appropriate subdirectory such as `mods/`).
   </Step>
   <Step title="Edit and refine">
     Open the file in a text editor. Save it while AC is running to see most changes reflected immediately in-game via live reload.
@@ -69,7 +69,7 @@ The table below lists the most commonly used top-level sections. Section and val
 | `[BOUNCED_BRAKE_LIGHTS]` | Fake volumetric "ground bleed" behind the brake lights — a gradient projected onto the road surface |
 | `[BOUNCED_HEADLIGHTS]` | Same ground-bleed effect applied to the front headlights |
 | `[SMART_MIRROR]` | Controls which interior mirror reflections are rendered in first-person view |
-| `[INSTRUMENTS]` | Speed-needle lag, RPM lag, maximum speedometer reading, and hazard-light G-threshold |
+| `[INSTRUMENTS]` | Speed-needle lag, speedometer maximum reading, fuel-splash multiplier, and hazard-light G-threshold |
 | `[DEFORMING_HOOD]` | Procedural hood bulge animation driven by engine speed noise |
 | `[SHADOWED_WHEELS]` | Projected circular shadow underneath each wheel to fake contact AO at a distance |
 

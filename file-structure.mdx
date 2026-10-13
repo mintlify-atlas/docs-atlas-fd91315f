@@ -1,5 +1,5 @@
 ---
-title: "Extension Config File Structure Reference"
+title: "CSP Extension Config File and Directory Structure Guide"
 sidebarTitle: "File Structure"
 description: "Understand how CSP extension config files are organized across config, textures, vao-patches, lua, and weather-controllers directories."
 ---
@@ -8,7 +8,7 @@ The CSP Extension Config repository maps directly to the `assettocorsa/extension
 
 ## Full Directory Tree
 
-```
+```text
 extension/
 ├── config/
 │   ├── cars/
@@ -61,6 +61,7 @@ extension/
 │   └── base/
 │       ├── controller.lua   # Default Weather FX controller (public domain)
 │       └── manifest.ini     # Controller metadata
+├── fonts/               # Shared font assets (e.g. NotoSans)
 └── backgrounds/             # Loading-screen background images, one folder per track
 ```
 

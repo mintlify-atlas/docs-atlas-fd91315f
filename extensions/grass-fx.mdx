@@ -1,5 +1,5 @@
 ---
-title: "Grass FX: Procedural Grass and Surface Coverage"
+title: "Grass FX: Procedural Grass, Quality Presets, and Shadows"
 sidebarTitle: "Grass FX"
 description: "Configure CSP Grass FX to generate procedural grass on track surfaces with quality presets, shadow casting, and Extra FX integration."
 ---
@@ -78,13 +78,13 @@ The internal `[GENERATION_0]` through `[GENERATION_4]` sections are hidden devel
 
 | Quality | Map resolution | Passes | Finest step (m) |
 |---------|---------------|--------|-----------------|
-| 0 — Very Low  | 512  | 4 | 1.0  |
-| 1 — Low       | 512  | 4 | 1.0  |
-| 2 — Medium    | 1024 | 5 | 0.5  |
-| 3 — High      | 1024 | 5 | 0.5  |
-| 4 — Very High | 1024 | 5 | 0.25 |
+| 0 — Very Low  | 512  | 4 | 0.25   |
+| 1 — Low       | 512  | 4 | 0.25   |
+| 2 — Medium    | 1024 | 5 | 0.125  |
+| 3 — High      | 1024 | 5 | 0.125  |
+| 4 — Very High | 1024 | 5 | 0.0625 |
 
-Each pass subdivides blade placement further. The extra passes at **Medium** and above are what produce the dense carpet look; **Very High** uses a 0.25 m step on its final pass, meaning up to four blades per square metre before culling.
+Each pass subdivides blade placement further. All quality levels share a base `MAP_STEP` of `0.25 m`; higher presets apply fractional multipliers in their finest passes, reaching a minimum of **0.0625 m** at Very High. The extra passes at **Medium** and above are what produce the dense carpet look.
 
 </Accordion>
 

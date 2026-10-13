@@ -66,10 +66,10 @@ The shared conditions file defines named lighting triggers like `NIGHT_SMOOTH`, 
 INCLUDE = common/conditions.ini
 ```
 
-This pulls in pre-defined `[CONDITION_80]` through `[CONDITION_93]` blocks — covering smoothly interpolated night transitions, always-on conditions, flag-colour LUTs, and flashing hazard conditions. You can define additional custom conditions in your own file using indices 0–74 (leave 75–99 for the shared file).
+This pulls in pre-defined `[CONDITION_74]` through `[CONDITION_93]` blocks — covering smoothly interpolated night transitions, always-on conditions, flag-colour LUTs, and flashing hazard conditions. You can define additional custom conditions in your own file using indices 0–73 (leave 74–99 for the shared file).
 
 <Tip>
-If you need a custom blinking condition (for tower warning lights, pit entry beacons, etc.) define it as `[CONDITION_0]` through `[CONDITION_74]` in your track's own config, or in a separate file that you include. Never edit `common/conditions.ini` directly.
+If you need a custom blinking condition (for tower warning lights, pit entry beacons, etc.) define it as `[CONDITION_0]` through `[CONDITION_73]` in your track's own config, or in a separate file that you include. Never edit `common/conditions.ini` directly.
 </Tip>
 
 ### Add `[BOUNCED_LIGHT]` with surface materials

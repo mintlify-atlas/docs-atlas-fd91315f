@@ -1,7 +1,7 @@
 ---
 title: "Chaser Camera Modes: Arcade, Drone, and Custom Scripts"
 sidebarTitle: "Chaser Camera"
-description: "Explore CSP's Lua-scripted chaser camera modes — arcade, arcade-2, base, and drone — and learn how to create a custom follow camera script."
+description: "Explore CSP's Lua-scripted chaser camera modes — base, arcade, arcade-mode-2, and drone — and learn how to build a custom follow camera."
 ---
 
 Custom Shaders Patch replaces Assetto Corsa's built-in chase camera with a fully scriptable system. Instead of a fixed follow-camera algorithm, CSP calls a Lua script every rendered frame and expects it to set `ac.Camera.position`, `ac.Camera.direction`, `ac.Camera.up`, and `ac.Camera.fov` directly. This means the entire behaviour — how the camera trails the car, how fast it reacts to slides and direction changes, and how it handles special states like burnouts and donuts — is defined in plain Lua that you can read, modify, and extend. The repository ships four ready-made modes, each demonstrating a different approach to follow-camera design.
@@ -14,7 +14,7 @@ All chaser camera scripts live under `lua/chaser-camera/` in the repository. Eac
 |---|---|---|---|
 | `base/` | Basic | Yokai, x4fab | Velocity-steered chase camera, close to stock AC feel |
 | `arcade-mode/` | Arcade | Levels | Responsive arcade style with G-force pitch |
-| `arcade-mode-2/` | Arcade (v2) | Bombadil | Arcade style with burnout/donut camera reactions and dynamic FOV |
+| `arcade-mode-2/` | Arcade | Bombadil | Arcade style with burnout/donut camera reactions and dynamic FOV |
 | `drone/` | Drone | Bombadil | Offset drone perspective with cinematic FOV scaling and tilt |
 
 ## The `script.update` Entry Point

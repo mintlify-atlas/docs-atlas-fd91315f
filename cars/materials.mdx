@@ -1,5 +1,5 @@
 ---
-title: "PBR and Custom Material Configuration for Cars"
+title: "PBR and Custom Material Configuration for Assetto Corsa Cars"
 sidebarTitle: "Materials"
 description: "Apply PBR materials, car paint shaders, glass, and interior materials to Assetto Corsa cars using CSP INI templates and texture packing."
 ---
@@ -49,11 +49,19 @@ F0                = 0.04
 </ParamField>
 
 <ParamField path="TextureNormal" type="filename">
-  Normal map. Only red and green channels are sampled. DXT5NM encoding is supported — set `DXT5NMNormalMap = 1` if your normal maps use that format.
+  Normal map. Only red and green channels are sampled. DXT5NM encoding is supported — the `DXT5NMNormalMap` flag defaults to `1` (enabled), so no extra setting is needed for most normal maps.
 </ParamField>
 
 <ParamField path="TextureEmAoMeRo" type="packed texture spec">
   A single RGBA texture (or up to four source textures/colours) packing: **R** = emissive mask, **G** = ambient occlusion, **B** = metalness, **A** = roughness. See the texture packing section below.
+</ParamField>
+
+<ParamField path="TextureSpecular" type="filename">
+  Specular colour map. Only used when `SpecularWorkflow = 1`; ignored in the default metalness workflow. If not set while using the specular workflow, the metalness channel from `TextureEmAoMeRo` is used instead.
+</ParamField>
+
+<ParamField path="TextureVarianceAO" type="filename">
+  Optional albedo variance and additional AO map using UV2 (activated by the `ApplyAOMap` or `ApplyVarianceMap` flags).
 </ParamField>
 
 <ParamField path="UVScale" type="float">
@@ -69,11 +77,11 @@ F0                = 0.04
 </ParamField>
 
 <ParamField path="ApplyTilingFix" type="0 or 1">
-  Reduces visible tiling artefacts by blending a second UV-offset sample. Adds one extra texture read per pixel.
+  Reduces visible tiling artefacts by blending a second UV-offset sample. Adds one extra texture read per pixel. Not available when parallax is active.
 </ParamField>
 
 <ParamField path="TextureDisplacement" type="filename">
-  Height map for parallax occlusion mapping. When set, the shader switches to `fuPBR_parallax`. Must be a square texture. Control depth with `ParallaxScale` (default `0.02`) and quality with `ParallaxSteps` (default `20`).
+  Height map for parallax occlusion mapping. When set, the shader switches to `fuPBR_parallax`. Must be a square texture. Control depth with `ParallaxScale` (default `0.02`), quality with `ParallaxSteps` (default `20`), and neutral grey level with `ParallaxOffset` (default `0.5`).
 </ParamField>
 
 ### Texture Packing Shorthand
@@ -227,7 +235,7 @@ Interior surfaces use the `nePBR_MultiMap*` family of shaders, configured throug
 ```ini
 [INCLUDE: common/materials_interior.ini]
 
-[Material_Leather_v2]
+[Material_LeatherSpotty_v2]
 Materials = INT_Skin_base
 Brightness = 1
 DetailNormalPBRSecondaryColor = 1, 1, 1, 0.04

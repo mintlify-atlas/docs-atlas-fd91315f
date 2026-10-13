@@ -324,6 +324,11 @@ ACTIVE                = 1
   Base colour and intensity of the light.
 </ParamField>
 
+<ParamField path="COLOR_OFF" type="r,g,b,brightness" default="0">
+  Colour when the condition is inactive. Typically `0` (off). Mirrors the
+  `COLOR_OFF` behaviour of `LIGHT_SERIES_X`.
+</ParamField>
+
 <ParamField path="COLOR_FROM" type="r,g,b,brightness">
   Start colour for an animated colour transition (used with `COLOR_TO`).
 </ParamField>

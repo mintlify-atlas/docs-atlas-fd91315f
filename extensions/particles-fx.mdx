@@ -148,11 +148,16 @@ CLIP_BY_GLASS=0
 ```ini
 [FLAMES]
 ENABLED=1
+DEBUG_MODE=0
 USE_DYNAMIC_SHADOWS=1
 ```
 
 <ParamField path="FLAMES/ENABLED" type="integer" default="1">
   Enables the reworked exhaust flame emitter system, which fires during anti-lag, rev limiter, and flat-shift events.
+</ParamField>
+
+<ParamField path="FLAMES/DEBUG_MODE" type="integer" default="0">
+  Colours flame particles by trigger type for diagnosis: blue = anti-lag, red = rev limiter, green = flat-shift, white = other. Set to `1` only while troubleshooting a car config; leave at `0` for normal play.
 </ParamField>
 
 <ParamField path="FLAMES/USE_DYNAMIC_SHADOWS" type="integer" default="1">
@@ -192,6 +197,14 @@ SHOW_IN_MIRRORS=1
 
 <ParamField path="FIREWORKS/LIMIT" type="integer" default="40000">
   Maximum firework particle count. Range: **10,000 – 40,000** (rounded to 10,000).
+</ParamField>
+
+<ParamField path="FIREWORKS/LIMIT_SMOKE" type="integer" default="1000">
+  Maximum number of smoke trail particles spawned by fireworks bursts. Range: **100 – 2,000** (rounded to 100). Keep low to avoid smoke from fireworks interfering with tyre smoke budgets.
+</ParamField>
+
+<ParamField path="FIREWORKS/SHOW_IN_MIRRORS" type="integer" default="1">
+  Renders fireworks particles in rear-view mirrors. Disable to recover a small amount of GPU bandwidth on fireworks-heavy holiday events.
 </ParamField>
 
 ---

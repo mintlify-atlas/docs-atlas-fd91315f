@@ -201,7 +201,7 @@ QUALITY=2
 </ParamField>
 
 <ParamField path="EXTERIOR_ONLY" type="integer" default="0">
-  When set to `1`, disables ASSAO for interior/cockpit cameras. Useful for open-wheel cars where the tight cockpit could look over-darkened.
+  When set to `1`, disables ASSAO for interior/cockpit cameras. Useful for open-wheel cars where the tight cockpit could look over-darkened. This is a simple `0`/`1` toggle, not the three-way condition used by other sections.
 </ParamField>
 
 <ParamField path="OPACITY" type="number" default="0.8">
@@ -324,6 +324,10 @@ DISTANCE_MULT=1.0
 
 <ParamField path="FOG_BLUR/HEATING" type="integer" default="1">
   Includes heat-shimmer distortion in the fog-blur pass, so hot exhaust plumes and road surfaces waver visually.
+</ParamField>
+
+<ParamField path="FOG_BLUR/EXTERIOR_ONLY" type="integer" default="0">
+  `0` = always active, `1` = exterior/replay cameras only, `2` = replays only. Mirrors the three-way condition used by other Extra FX sections.
 </ParamField>
 
 <ParamField path="FOG_BLUR/DISTANCE_MULT" type="number" default="1.0">

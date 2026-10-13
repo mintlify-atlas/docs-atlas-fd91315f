@@ -1,5 +1,5 @@
 ---
-title: "Install CSP Extension Config in Assetto Corsa"
+title: "How to Install CSP Extension Config in Assetto Corsa"
 sidebarTitle: "Installation"
 description: "Install Custom Shaders Patch extension configs via Content Manager auto-download or by manually cloning the repository into your AC install."
 ---
@@ -52,7 +52,7 @@ If you are not using Content Manager — for example, on a dedicated server or f
   <Step title="Extract to the extension folder">
     Extract or copy the contents so that the `tzdata` folder (the version marker) ends up directly inside `assettocorsa/extension/`. The resulting folder structure should look like this:
 
-    ```
+    ```text
     C:\...\assettocorsa\extension\
     \---extension
         +---config
@@ -67,7 +67,7 @@ If you are not using Content Manager — for example, on a dedicated server or f
 
     Steam users will typically find their Assetto Corsa root at one of these paths:
 
-    ```
+    ```text
     C:\Program Files\Steam\steamapps\common\assettocorsa\
     X:\Steam\steamapps\common\assettocorsa\
     ```
@@ -84,7 +84,7 @@ If you are not using Content Manager — for example, on a dedicated server or f
 
 Any setting in the shipped configs can be overridden on a per-user basis without modifying the repository files. User-specific config files are stored here:
 
-```
+```text
 %userprofile%\Documents\Assetto Corsa\cfg\extension\
 ```
 
@@ -93,7 +93,7 @@ CSP merges files in the user folder on top of the defaults in `assettocorsa/exte
 <Note>
   Some track configs require additional `.kn5` mesh files alongside the INI. These files ship in the same `config/tracks/` directory as their corresponding config and must be present for the track lighting to work. For example, `config/tracks/ks_nurburgring.ini` requires these files in the same folder:
 
-  ```
+  ```text
   nurbAllGlass.kn5
   nurbSpots.kn5
   nurbSpotsPad.kn5

@@ -1,72 +1,88 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mintlify Starter Kit",
+  "name": "Custom Shaders Patch — Extension Config",
+  "theme": "aspen",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#0065ff",
+    "light": "#145cbc",
+    "dark": "#84a4dc"
   },
-  "favicon": "/favicon.svg",
-  "navigation": {
-    "pages": [
-      {
-        "group": "Getting Started",
-        "pages": [
-          "index",
-          "quickstart"
-        ]
-      }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
+  "favicon": "https://media.brand.dev/7f8d6d1a-3a65-4ff5-8eed-c6e4f185006b.png",
   "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
+    "light": "https://media.brand.dev/c29274fe-42b4-4b5d-81a8-fd583892a786.svg",
+    "dark": "https://media.brand.dev/c29274fe-42b4-4b5d-81a8-fd583892a786.svg"
   },
   "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:support@mintlify.com"
-      }
-    ],
     "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://app.mintlify.com"
+      "type": "github",
+      "href": "https://github.com/ac-custom-shaders-patch/acc-extension-config"
     }
-  },
-  "contextual": {
-    "options": [
-      "copy",
-      "view",
-      "chatgpt",
-      "claude",
-      "perplexity",
-      "mcp",
-      "cursor",
-      "vscode"
-    ]
   },
   "footer": {
     "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
+      "github": "https://github.com/ac-custom-shaders-patch/acc-extension-config"
     }
+  },
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "file-structure"
+            ]
+          },
+          {
+            "group": "Car Configuration",
+            "pages": [
+              "cars/overview",
+              "cars/lights",
+              "cars/materials",
+              "cars/instruments",
+              "cars/common-templates"
+            ]
+          },
+          {
+            "group": "Track Configuration",
+            "pages": [
+              "tracks/overview",
+              "tracks/lights",
+              "tracks/conditions",
+              "tracks/bounced-light"
+            ]
+          },
+          {
+            "group": "Visual Extensions",
+            "pages": [
+              "extensions/weather-fx",
+              "extensions/rain-fx",
+              "extensions/extra-fx",
+              "extensions/particles-fx",
+              "extensions/grass-fx",
+              "extensions/lighting-fx"
+            ]
+          },
+          {
+            "group": "Lua Scripting",
+            "pages": [
+              "lua/overview",
+              "lua/weather-controllers",
+              "lua/chaser-camera"
+            ]
+          },
+          {
+            "group": "Contributing",
+            "pages": [
+              "contributing/adding-car-configs",
+              "contributing/adding-track-configs"
+            ]
+          }
+        ]
+      }
+    ]
   }
 }

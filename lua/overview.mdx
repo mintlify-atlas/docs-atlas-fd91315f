@@ -1,0 +1,83 @@
+---
+title: "Lua Scripting in CSP Extension Config"
+sidebarTitle: "Overview"
+description: "Understand how Lua scripts integrate with Custom Shaders Patch — from weather controllers to camera modes and FFB post-processing."
+---
+
+Custom Shaders Patch embeds a full Lua runtime directly inside Assetto Corsa's process, giving scripts first-class access to the simulation state on every rendered frame. All public CSP APIs are exposed through the `ac.*` namespace — a rich collection of functions and objects covering everything from car physics vectors to atmospheric conditions. Scripts in this repository serve as the official reference implementations shipped with CSP, covering weather dynamics, camera behaviour, force-feedback shaping, particle effects, and new game modes.
+
+## How the Runtime Works
+
+CSP loads each Lua script as an isolated module. The simulation engine calls a well-known entry point — `script.update(dt)` — once per frame, passing the elapsed time in seconds as `dt`. Scripts retain their local state between calls through upvalues (Lua closures over module-level variables), so you can accumulate smoothed values, timers, and cached references without any external storage.
+
+```lua
+-- Minimal script skeleton
+function script.update(dt)
+  -- dt: seconds since the previous frame
+  -- all ac.* API functions are available here
+end
+```
+
+Shared utility code lives under `shared/` and is imported with the standard `require()` function. For example, the weather system exposes helper routines at `shared/sim/weather`:
+
+```lua
+local weatherUtils = require('shared/sim/weather')
+```
+
+CSP resolves these paths relative to its own internal module registry, not the filesystem, so they are always available regardless of where a script is installed.
+
+## Script Categories
+
+The repository organises Lua scripts into distinct categories, each targeting a different CSP extension point.
+
+| Directory | Extension Point | Entry File |
+|---|---|---|
+| `weather-controllers/<name>/` | WeatherFX controller | `controller.lua` |
+| `lua/chaser-camera/<name>/` | Chaser / chase camera | `camera.lua` |
+| `lua/ffb-postprocess/<name>/` | FFB post-processing | `ffb.lua` |
+| `lua/fireworks/<name>/` | Particle fireworks | `fireworks.lua` |
+| `lua/new-modes/<name>/` | New driving modes | `mode.lua` |
+| `lua/cockpit-camera/<name>/` | Cockpit / NeckFX camera | `cockpit.lua` |
+
+Every category follows the same convention: a folder named after the script, a `manifest.ini` describing it, and one or more Lua entry files that CSP loads at the appropriate time.
+
+## The `manifest.ini` Convention
+
+Every script folder contains a `manifest.ini` with an `[ABOUT]` section. CSP reads this file to populate UI lists and log messages.
+
+```ini
+[ABOUT]
+NAME        = My Script
+AUTHOR      = Your Name
+VERSION     = 1.0
+DESCRIPTION = One-line summary shown in the UI.
+```
+
+## Module Loading with `require`
+
+Scripts can split logic across multiple files and pull in shared utilities:
+
+```lua
+-- Load a shared CSP utility module
+local weatherUtils = require('shared/sim/weather')
+
+-- Load a file relative to the script's own directory
+local helpers = require('helpers')  -- resolves to helpers.lua alongside the script
+```
+
+The `require` call is idempotent — repeated calls return the cached module table, so cross-file state is shared safely within one script context.
+
+## Further Reading
+
+The complete `ac.*` API reference, type definitions, and additional tutorials are maintained on the CSP wiki:
+
+> [https://github.com/ac-custom-shaders-patch/acc-extension-config/wiki](https://github.com/ac-custom-shaders-patch/acc-extension-config/wiki)
+
+<CardGroup cols={2}>
+  <Card title="Weather Controllers" icon="cloud-rain" href="/lua/weather-controllers">
+    Write Lua scripts that push live atmospheric conditions — temperature, wind, humidity, rain — to the WeatherFX engine every simulation tick.
+  </Card>
+  <Card title="Chaser Camera" icon="video" href="/lua/chaser-camera">
+    Implement arcade, cinematic drone, and custom chase camera modes that reposition and orient the camera each frame based on car physics.
+  </Card>
+</CardGroup>

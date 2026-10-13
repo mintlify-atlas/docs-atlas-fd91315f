@@ -1,0 +1,293 @@
+---
+title: "Chaser Camera Modes: Arcade, Drone, and Custom Scripts"
+sidebarTitle: "Chaser Camera"
+description: "Explore CSP's Lua-scripted chaser camera modes — arcade, arcade-2, base, and drone — and learn how to create a custom follow camera script."
+---
+
+Custom Shaders Patch replaces Assetto Corsa's built-in chase camera with a fully scriptable system. Instead of a fixed follow-camera algorithm, CSP calls a Lua script every rendered frame and expects it to set `ac.Camera.position`, `ac.Camera.direction`, `ac.Camera.up`, and `ac.Camera.fov` directly. This means the entire behaviour — how the camera trails the car, how fast it reacts to slides and direction changes, and how it handles special states like burnouts and donuts — is defined in plain Lua that you can read, modify, and extend. The repository ships four ready-made modes, each demonstrating a different approach to follow-camera design.
+
+## Available Modes
+
+All chaser camera scripts live under `lua/chaser-camera/` in the repository. Each subdirectory contains a `manifest.ini` and a `camera.lua`.
+
+| Folder | `NAME` in manifest | Author | Purpose |
+|---|---|---|---|
+| `base/` | Basic | Yokai, x4fab | Velocity-steered chase camera, close to stock AC feel |
+| `arcade-mode/` | Arcade | Levels | Responsive arcade style with G-force pitch |
+| `arcade-mode-2/` | Arcade (v2) | Bombadil | Arcade style with burnout/donut camera reactions and dynamic FOV |
+| `drone/` | Drone | Bombadil | Offset drone perspective with cinematic FOV scaling and tilt |
+
+## The `script.update` Entry Point
+
+CSP calls `script.update(dt, cameraIndex)` on every rendered frame. `dt` is the elapsed time in seconds; `cameraIndex` is `1` or `2`, corresponding to the two configurable chase-camera presets in Assetto Corsa's camera settings. Scripts read the per-preset parameters (distance, height, pitch) with `ac.getCameraParameters(cameraIndex)` and then compute the final world-space camera transform.
+
+```lua
+function script.update(dt, cameraIndex)
+  smoothing.setDT(dt)
+
+  local params   = ac.getCameraParameters(cameraIndex)
+  local carPos   = ac.getCarPosition()
+  local carDir   = ac.getCarDirection()
+  local carUp    = ac.getCarUp()
+
+  -- ... compute position, direction, up, fov ...
+
+  ac.Camera.position  = -- vec3
+  ac.Camera.direction = -- vec3
+  ac.Camera.up        = -- vec3
+  ac.Camera.fov       = -- number (degrees)
+end
+```
+
+## Smoothing Velocity
+
+All four modes track car velocity through a `smoothing` object rather than using raw `ac.getCarVelocity()` values. This eliminates jitter in replays and online sessions where positions may jump or freeze.
+
+```lua
+-- Declare a smoothed vec3, with a responsiveness factor:
+local carVelocity = smoothing(vec3(), 40)  -- higher = snappier
+
+function script.update(dt, cameraIndex)
+  smoothing.setDT(dt)          -- must be called first each frame
+  carVelocity:updateIfNew(ac.getCarVelocity())
+  -- carVelocity.val now holds the smoothed velocity vector
+end
+```
+
+The alternative approach used by all four modes is to compute velocity manually from the delta of `ac.getCarPosition()` across frames, which produces smoother output in edge cases:
+
+```lua
+local lastCarPos = vec3()
+-- Inside update:
+local delta = lastCarPos - carPos
+carVelocity:update(-delta / dt)
+lastCarPos = carPos
+```
+
+## Mode Details
+
+<Accordion title="Base — Nothing Fancy, Slightly More Flexible">
+**File:** `lua/chaser-camera/base/camera.lua`  
+**Authors:** Yokai, x4fab  **Version:** 1.1
+
+The base camera computes a yaw angle from the lateral component of the smoothed velocity vector and rotates the camera around the car accordingly. Smoothing responsiveness is set to `40`, making the camera react crisply but without the exaggerated swing of an arcade style. Pitch is derived from the in-game preset setting. Look-left / look-right inputs and joystick look are all supported.
+
+```lua
+local maximumCameraAngle = { 54, 68 }  -- degrees, per camera preset
+local carVelocity        = smoothing(vec3(), 40)
+local lookDirection      = smoothing(0, 10)
+
+function script.update(dt, cameraIndex)
+  smoothing.setDT(dt)
+
+  local cameraParameters = ac.getCameraParameters(cameraIndex)
+  local distance  = cameraParameters.distance + 1.6
+  local height    = cameraParameters.height   - 0.3
+  local pitchAngle = cameraParameters.pitch   - 5
+
+  local carPos   = ac.getCarPosition()
+  local carDir   = ac.getCarDirection()
+  local carUp    = ac.getCarUp()
+  local carRight = math.cross(carDir, carUp):normalize()
+
+  -- Velocity-based yaw angle:
+  local carVelocityDir = math.normalize(carVelocity.val + carDir * 0.01)
+  local velocityX = math.clamp(
+    math.dot(carRight, carVelocityDir) * math.pow(#carVelocity.val, 0.5) / 10,
+    -1, 1)
+  local cameraAngle = -velocityX * math.radians(maximumCameraAngle[cameraIndex])
+
+  -- Joystick / keyboard look-around:
+  local joystickLook = ac.getJoystickLook()
+  lookDirection:update(
+    (ac.looksLeft() and ac.looksRight() or ac.looksBehind()) and math.sign(lookDirection.val) or
+    ac.looksLeft()  and  0.5 or
+    ac.looksRight() and -0.5 or
+    joystickLook ~= nil and joystickLook.x or 0)
+  cameraAngle = cameraAngle + lookDirection.val * math.pi
+
+  local sin, cos = math.sin(cameraAngle), math.cos(cameraAngle)
+
+  ac.Camera.position  = carPos
+    + (carRight * sin - carDir * cos) * distance
+    + vec3(0, height, 0)
+
+  local cameraLook = (carPos + carDir + carUp * (1 - math.abs(lookDirection.val))
+    - ac.Camera.position):normalize()
+  cameraLook:rotate(quat.fromAngleAxis(math.radians(pitchAngle), carRight))
+
+  ac.Camera.direction = cameraLook
+  ac.Camera.up        = (carUp + vec3(0, 3, 0)):normalize()
+  ac.Camera.fov       = 60
+end
+```
+</Accordion>
+
+<Accordion title="Arcade Mode — G-Force Pitch and Snappy Tracking">
+**File:** `lua/chaser-camera/arcade-mode/camera.lua`  
+**Author:** Levels  **Version:** 2.0
+
+The arcade camera reduces smoothing responsiveness to `5`, making it react much faster and feel more game-like. Maximum yaw swing angles are `45°` and `35°` (tighter than the base). The most distinctive feature is the pitch calculation: instead of a fixed offset, pitch is proportional to the current vertical G-force (`carForces.y`), so the camera dips forward under heavy braking and rises under acceleration.
+
+```lua
+local maximumCameraAngle = { 45, 35 }
+local carVelocity        = smoothing(vec3(), 5)   -- snappy
+local lookDirection      = smoothing(0, 3)
+
+-- Inside update:
+local carForces  = ac.getCarGForces()
+local distance   = cameraParameters.distance + 0.8
+local height     = cameraParameters.height             -- no vertical offset
+local pitchAngle = -cameraParameters.pitch * (carForces.y / 6 + 0)
+-- pitchAngle scales with longitudinal G, giving a dynamic dip/rise effect
+
+-- Yaw angle doubles the coefficient vs. base:
+local cameraAngle = -velocityX * math.rad(maximumCameraAngle[cameraIndex]) * 2
+```
+</Accordion>
+
+<Accordion title="Arcade Mode 2 — Burnout and Donut Camera Reactions">
+**File:** `lua/chaser-camera/arcade-mode-2/camera.lua`  
+**Author:** Bombadil  **Version:** 1.0
+
+This mode builds on the arcade concept with three additional behaviours: smoothly interpolated height and distance, a **burnout mode** that zooms the camera in close when both rear tyres are spinning at a standstill, and a **donut mode** that pulls the camera back and to the side when the car is spinning tight circles. Height, distance, and look-position offset are all `smoothing` values rather than hard numbers, so transitions between states are cinematic. FOV scales dynamically with speed.
+
+```lua
+local smoothHeight        = smoothing(1, 150)
+local smoothDistance      = smoothing(5, 90)
+local smoothLookPosOffset = smoothing(1, 80)
+local burnoutTimer        = 5
+local donutTimer          = 5
+
+-- Burnout detection: both rear tyres fully slipping, nearly stationary:
+local slipRatio = math.saturate(ac.getTyreSlipRatio(3) * ac.getTyreSlipRatio(4) * 2)
+if slipRatio == 1 and #ac.getCarVelocity() < 0.5 then
+  smoothDistance:update(0)   -- pull camera to the car
+  smoothHeight:update(0)
+  burnoutTimer = 1
+end
+
+-- Donut detection: full slip + low speed + high steer input:
+if slipRatio == 1 and #ac.getCarVelocity() < 4 and math.abs(ac.getSteer()) > 300 then
+  smoothDistance:update(8)   -- wide orbit shot
+  smoothHeight:update(4)
+end
+
+-- Dynamic FOV:
+ac.Camera.fov = 35 + (#carVelocity.val * 0.26)
+```
+</Accordion>
+
+<Accordion title="Drone — Offset Perspective and Cinematic Roll">
+**File:** `lua/chaser-camera/drone/camera.lua`  
+**Author:** Bombadil  **Version:** 1.0
+
+The drone camera shares the same burnout/donut detection logic as arcade-mode-2 but positions the camera with a lateral world-space offset (`vec3(0.4, …)`) to simulate a drone hovering slightly to one side. The `up` vector has a small roll component (`vec3(0.1, 1, -0.1)`) to give a subtle tilt, and the base FOV is narrower (`31°`) with a slower speed scaling factor (`0.18` vs `0.26`), producing a more telephoto, cinematic feel. The look target is biased toward the front of the car so the subject stays framed even at high yaw angles.
+
+```lua
+-- Lateral world-space offset gives a drone-alongside feel:
+ac.Camera.position = carPos
+  + (carRight * sin - carDir * cos) * smoothDistance.val
+  + vec3(0.4, smoothHeight.val, 0)   -- 0.4 m to the right in world space
+
+-- Subtle roll tilt on the up vector:
+ac.Camera.up  = (carUp + vec3(0.1, 1, -0.1)):normalize()
+
+-- Narrower telephoto FOV scaling:
+ac.Camera.fov = 31 + (#carVelocity.val * 0.18)
+```
+</Accordion>
+
+## Selecting a Chaser Camera Script
+
+Install the script folder at:
+
+```
+extension/lua/chaser-camera/<your-mode>/
+```
+
+Then, in the CSP app's **Chaser Camera** section, select your mode from the dropdown list. Alternatively, set the value directly in the relevant CSP config:
+
+```ini
+[CHASER_CAMERA]
+SCRIPT = your-mode   ; folder name under extension/lua/chaser-camera/
+```
+
+Restart or reload the session for the new script to take effect.
+
+## Writing a Minimal Custom Camera
+
+<Steps>
+  <Step title="Create the directory">
+    Make `extension/lua/chaser-camera/my-cam/` in the CSP data directory.
+  </Step>
+  <Step title="Add manifest.ini">
+    ```ini
+    [ABOUT]
+    NAME        = My Camera
+    AUTHOR      = YourName
+    VERSION     = 1.0
+    DESCRIPTION = A custom follow camera.
+    ```
+  </Step>
+  <Step title="Write camera.lua">
+    Start with the minimal skeleton below and tune the constants until the feel matches your target.
+
+    ```lua
+    -- Smooth the velocity to avoid jitter in replays/online
+    local carVelocity   = smoothing(vec3(), 30)
+    local lastCarPos    = vec3()
+
+    function script.update(dt, cameraIndex)
+      smoothing.setDT(dt)
+
+      local params   = ac.getCameraParameters(cameraIndex)
+      local distance = params.distance + 2.0
+      local height   = params.height
+
+      local carPos   = ac.getCarPosition()
+      local carDir   = ac.getCarDirection()
+      local carUp    = ac.getCarUp()
+      local carRight = math.cross(carDir, carUp):normalize()
+
+      -- Compute velocity from position delta
+      if lastCarPos ~= carPos and lastCarPos ~= vec3() then
+        local delta = lastCarPos - carPos
+        local len   = #delta
+        if len > 5 then delta = delta / len * 5 end
+        carVelocity:update(-delta / dt)
+      end
+      lastCarPos = carPos
+
+      -- Derive lateral yaw angle from sideways velocity component
+      local velDir  = math.normalize(carVelocity.val + carDir * 0.01)
+      local velX    = math.clamp(
+        math.dot(carRight, velDir) * math.pow(#carVelocity.val, 0.5) / 10,
+        -1, 1)
+      local angle   = -velX * math.radians(50)
+
+      local sin, cos = math.sin(angle), math.cos(angle)
+
+      ac.Camera.position  = carPos
+        + (carRight * sin - carDir * cos) * distance
+        + vec3(0, height, 0)
+
+      local lookTarget    = carPos + carDir
+      ac.Camera.direction = (lookTarget - ac.Camera.position):normalize()
+      ac.Camera.up        = (carUp + vec3(0, 2, 0)):normalize()
+      ac.Camera.fov       = 60
+    end
+    ```
+  </Step>
+  <Step title="Select and test">
+    Pick **My Camera** from the Chaser Camera dropdown in the CSP app and jump into a session.
+  </Step>
+</Steps>
+
+<Tip>
+The **Drone** mode is an excellent starting point for cinematic replay captures. Its narrow base FOV (`31°`), lateral world-space offset, and slow FOV scaling make fast cars look dramatically larger and more imposing on track — particularly effective on wide corners where the offset angle reveals the car's full silhouette against the environment.
+</Tip>
+
+<Note>
+All four built-in modes support both joystick look (`ac.getJoystickLook()`) and keyboard look (`ac.looksLeft()`, `ac.looksRight()`, `ac.looksBehind()`). When implementing your own script, hooking these inputs ensures compatibility with wheels, gamepads, and TrackIR-style head tracking without any extra work.
+</Note>

@@ -1,0 +1,200 @@
+---
+title: "Bounced Light Configuration for Track Surfaces"
+sidebarTitle: "Bounced Light"
+description: "Enable ground-reflected light from trackside lamps using CSP's BOUNCED_LIGHT section — configure surface materials, occluders, and clip points."
+---
+
+Bounced light is CSP's system for producing subtle ground-level glow caused by trackside lights reflecting off the road surface and run-off areas. Instead of relying purely on direct illumination from `LIGHT_X` or `LIGHT_SERIES_X`, CSP builds a top-down light map of the track at runtime, then uses that map to create soft ambient fill in the low-angle areas around lit fixtures. On a night lap, bounced light is responsible for the characteristic orange or white haze you see creeping across the tarmac between lamp posts — making the surface feel genuinely lit rather than simply less dark.
+
+Enabling and tuning bounced light requires you to categorise the materials in your track's KN5 by their role: which surfaces bounce light back upward, which objects should be excluded entirely, and which should cast shadows on the ground.
+
+<Tip>
+  Start with `SUPPORTED = 1` and leave all material lists empty. CSP will apply
+  a default bounce to the whole scene. Drive a lap, then progressively refine
+  `SURFACE_MATERIALS`, `OBJECT_MATERIALS`, and `OCCLUDING_MATERIALS` to remove
+  artefacts and improve accuracy. It is much easier to subtract than to add from
+  scratch.
+</Tip>
+
+---
+
+## `[BOUNCED_LIGHT]` Parameters
+
+<ParamField path="SUPPORTED" type="0 or 1" default="0">
+  Master switch. Set to `1` to enable bounced light for this track. If this
+  is `0` (or the section is absent), CSP skips all bounced-light processing
+  for the circuit regardless of the other settings.
+</ParamField>
+
+<ParamField path="SURFACE_MATERIALS" type="string (comma-separated)">
+  List of material names that **receive and reflect** light back upward.
+  These are the surfaces you want to show the ground glow — typically the
+  racing surface, run-off areas, grass, painted kerbs, sand traps, and
+  similar flat or near-flat surfaces. Supports `?` wildcards.
+
+  Materials not listed here are treated as transparent to the light map
+  and will not contribute a bounce reflection, so leaving this list empty
+  while `SUPPORTED = 1` lets CSP use a built-in default.
+</ParamField>
+
+<ParamField path="OBJECT_MATERIALS" type="string (comma-separated)">
+  Materials to **completely exclude** from the light map. Add any upright or
+  vertical geometry here — tyre barriers, jersey barriers, Armco rails,
+  billboards, advertising boards, fencing, walls, and any other structures
+  that should neither bounce nor occlude the ground glow. Supports `?`
+  wildcards.
+
+  Leaving objects like tall walls in the light map can cause incorrect
+  bounced-light spread because their horizontal extent inflates the map.
+</ParamField>
+
+<ParamField path="SPOT_MATERIALS" type="string (comma-separated)">
+  Materials that **contribute** to the bounced light (like `SURFACE_MATERIALS`)
+  but are **not used** to determine the ground height for the light map. Use
+  this for rocks, kerb lips, mounds, or other raised features that naturally
+  receive and reflect light but whose height should not distort the map's
+  elevation baseline.
+</ParamField>
+
+<ParamField path="OCCLUDING_MATERIALS" type="string (comma-separated)">
+  Materials rendered as solid black in the light map, casting hard shadows
+  on the ground beneath them. Use for significant overhead structures that
+  genuinely block light from reaching the tarmac: bridges, pit lane roofs,
+  grandstand canopies, and large signage gantries. Supports `?` wildcards.
+</ParamField>
+
+<ParamField path="CLIP_POINT_X" type="x,y,z">
+  A world-space coordinate that is used to clip the boundaries of the bounced-
+  light map. On circuits with elevation changes or complex layouts, the
+  automatic map boundary can extend into underground tunnels, basement areas,
+  or far-away geometry that produces incorrect bounce contributions. Each
+  `CLIP_POINT_X` (where `X` is a sequential integer starting from `0`) defines
+  a point that clips the map to exclude geometry beyond it. You can add as many
+  as needed.
+</ParamField>
+
+---
+
+## Finding Material Names
+
+To populate the material lists accurately you need to know the exact material names used in the track's KN5 file. Several tools can help:
+
+<Steps>
+  <Step title="Use CM's AC Model Viewer">
+    Content Manager's built-in model viewer (right-click a KN5 in the
+    `content/tracks/` folder → **View in AC Model Viewer**) displays every
+    material and mesh name. Click on geometry in the viewport to see which
+    material it uses.
+  </Step>
+  <Step title="Use 3DS Max or Blender KN5 importers">
+    Importing the KN5 into a DCC application with an Assetto Corsa importer
+    (e.g. the Blender AC plugin) gives you the full hierarchy. Material names
+    appear exactly as they do in the INI.
+  </Step>
+  <Step title="Look at existing configs for the same track">
+    If a track already has a CSP config in the repository, check its
+    `SURFACE_MATERIALS` and `OBJECT_MATERIALS` lists — these are your best
+    starting reference.
+  </Step>
+  <Step title="Check neighbouring config files for naming patterns">
+    Kunos tracks follow consistent naming conventions (`asph?`, `roads?`,
+    `grass?`, `top1?`, etc.) which you can use as a starting template and
+    refine from there.
+  </Step>
+</Steps>
+
+---
+
+## Examples
+
+### Minimal Setup — Enable and let CSP decide
+
+```ini
+[BOUNCED_LIGHT]
+SUPPORTED = 1
+```
+
+### Red Bull Ring
+
+A typical Kunos track setup — surface materials use `?` wildcards to cover
+variant names, and `SUPPORTED = 1` is the only required key:
+
+```ini
+[BOUNCED_LIGHT]
+SUPPORTED         = 1
+SURFACE_MATERIALS = grass?, TOP, roads?, top1?, travert, sand, asph?, whiteline?, cnc_box, paint, Roof
+```
+
+### Brands Hatch
+
+This example adds explicit occluding geometry and comments out the clip points
+(they can be uncommented if the light map extends incorrectly into the valley):
+
+```ini
+[BOUNCED_LIGHT]
+SUPPORTED            = 1
+SURFACE_MATERIALS    = ?grs?, ?gras?, ?grass?, sbanc?, asph?, curbs?, concrete_green, concrete_box, sand, Asph?
+; OBJECT_MATERIALS  = bridge?, occ
+OCCLUDING_MATERIALS  = barrier, jersey1, grail, grail-final, dist, brake_sign, concrete_old, structures_alpha, LOGOS, soppalco, gstand_base, building2_main, direction, jersey, barrier_entrance
+; CLIP_POINT_0      = 123.76, 2.75, 6.95
+; CLIP_POINT_1      = 153.34, -3.63, -191.85
+; CLIP_POINT_2      = -277.9, 4.35, -17.52
+```
+
+### Forli Ring (Elevation Changes Requiring Clip Points)
+
+On hillside or multi-level circuits, clip points prevent the light map from
+covering underground or far-off geometry. Each `CLIP_POINT_X` is a world-space
+coordinate that helps CSP determine where the valid light-map area ends:
+
+```ini
+[BOUNCED_LIGHT]
+SUPPORTED    = 1
+CLIP_POINT_0 = -670.1,  199.64, -212.35
+CLIP_POINT_1 = -785.02, 213.15,   13.75
+CLIP_POINT_2 = -108.26, 179.08,  -63.28
+CLIP_POINT_3 =  873.37, 109.07, -677.42
+CLIP_POINT_4 = -211.2,  157.78, -490.95
+CLIP_POINT_5 = -647.65, 134.0,  -840.22
+CLIP_POINT_6 = -681.24, 200.22, -218.38
+```
+
+### Nordschleife (Large Track with Object Exclusion)
+
+Long tracks often need `OBJECT_MATERIALS` to strip out trees, fencing, and
+spectator areas that would incorrectly appear in the light map and produce
+artificial glow patterns in the forest sections:
+
+```ini
+[BOUNCED_LIGHT]
+SUPPORTED        = 1
+OBJECT_MATERIALS = tree_shadow, branch?, fence?, grail?, marshall, jersey, ?house?, ?hotel?, tent?, TV_Stuff
+CLIP_POINT_0     = -2542.08,  42.57,   -11.57
+CLIP_POINT_1     =  -476.46, 141.38,  2364.61
+CLIP_POINT_2     =   173.12, 111.08,  1733.29
+```
+
+---
+
+## Common Issues and Solutions
+
+<Warning>
+  If you see bounced light appearing inside tunnels, buildings, or on the
+  underside of bridges, add the relevant overhead structures to
+  `OCCLUDING_MATERIALS` or `OBJECT_MATERIALS` and add `CLIP_POINT_X` values
+  near the problem area.
+</Warning>
+
+<Warning>
+  If the bounce glow looks too bright or bleeds onto walls and fencing, move
+  those material names from `SURFACE_MATERIALS` to `OBJECT_MATERIALS`. Vertical
+  surfaces should generally not be in the surface list.
+</Warning>
+
+<Tip>
+  `SPOT_MATERIALS` is ideal for raised kerbs, rumble strips, or trackside
+  boulders — they should glow under lights like the road surface, but their
+  elevated position should not mislead the height calculation used to place the
+  light map. Adding them to `SPOT_MATERIALS` rather than `SURFACE_MATERIALS`
+  gives you the visual bounce without the height artefact.
+</Tip>

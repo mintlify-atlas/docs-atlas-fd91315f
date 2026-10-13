@@ -1,0 +1,245 @@
+---
+title: "Digital Instruments and Odometer Configuration"
+sidebarTitle: "Instruments"
+description: "Configure digital dashboard displays, speedometers, odometers, and custom emissive instrument indicators for Assetto Corsa cars with CSP."
+---
+
+CSP extends the vanilla Assetto Corsa instrument system with digital odometers, needle-lag simulation, and a set of emissive dashboard indicators tied directly to game telemetry. Configuration lives in the car's INI file under the `[INSTRUMENTS]`, `[ODOMETER_MAIN]`, and `[ODOMETER_TRIP]` sections, plus a family of `[EMISSIVE_*_X]` sections that light up warning icons and tell-tales.
+
+---
+
+## `[INSTRUMENTS]`
+
+This section controls the behaviour of the core analog instruments: how quickly the speedometer needle reacts to speed changes and what value the gauge reads at full deflection.
+
+```ini
+[INSTRUMENTS]
+SPEED_LAG   = 0.7
+SPEED_LIMIT = 270
+RPM_LAG     = 0
+```
+
+<ParamField path="SPEED_LAG" type="float 0–1">
+  Smoothing (lag) applied to the speedometer needle. `0` = perfectly instant (digital), `1` = very slow. A value of `0.7` reproduces the feel of a mechanical automotive speedometer well.
+</ParamField>
+
+<ParamField path="SPEED_LIMIT" type="float (km/h)">
+  Maximum reading of the analog speedometer in km/h. The needle is mapped linearly from 0 to this value. Ensure this is at or above the car's actual top speed to avoid the needle wrapping around.
+</ParamField>
+
+<ParamField path="RPM_LAG" type="float 0–1">
+  Same smoothing factor applied to the tachometer needle. Most modern cars use `0` (electronic tachometer). Older cars with impulse tachos benefit from a small value like `0.1`–`0.2`.
+</ParamField>
+
+<ParamField path="SPEED_FIX" type="0 or 1">
+  When `1`, synchronises the analog speedometer with the driveshaft speed rather than the absolute physics velocity. Produces a realistic pull-through on gear changes.
+</ParamField>
+
+<ParamField path="FUEL_SPLASH_MULT" type="float">
+  Multiplier for the fuel-level jitter effect during cornering. Negative values invert the direction of the splash. The RUF Yellowbird uses `-0.0525` to match its gauge geometry.
+</ParamField>
+
+---
+
+## Digital Odometer — `[ODOMETER_MAIN]` and `[ODOMETER_TRIP]`
+
+The odometer system draws digit characters from a font strip texture directly onto a named dashboard mesh. Both `[ODOMETER_MAIN]` (total distance) and `[ODOMETER_TRIP]` (trip distance) share the same parameter set; the only difference is what they read.
+
+The digits are rendered as a UV-mapped overlay on the target mesh. `POSITION` and `SIZE` are specified in **pixels** relative to the mesh's UV layout (i.e. they are UV coordinates multiplied by the texture resolution), so you need to know the texture resolution of the dashboard mesh to position the odometer correctly.
+
+<ParamField path="NAME" type="string" required>
+  The mesh name in the KN5 that carries the odometer overlay. Must be an emissive or self-lit material for the digits to be visible.
+</ParamField>
+
+<ParamField path="FONT" type="string">
+  Font strip asset to use for digit rendering. The default `odometer_font` is a built-in CSP asset providing white 7-segment-style numerals.
+</ParamField>
+
+<ParamField path="BLEND_MODE" type="integer">
+  Blend mode for the digit overlay. `0` = additive (digits add brightness over the background). Other values may use alpha blending depending on CSP version.
+</ParamField>
+
+<ParamField path="POSITION" type="x, y (pixels)">
+  Top-left corner of the odometer readout area in texture-pixel coordinates relative to the mesh UV. For example, `261, 67` positions the readout 261 px from the left and 67 px from the top of the texture.
+</ParamField>
+
+<ParamField path="SIZE" type="width, height (pixels)">
+  Total pixel size of the readout area. The width is divided equally among `COUNT` digits.
+</ParamField>
+
+<ParamField path="DIGIT_WIDTH" type="float (pixels)">
+  Width of a single digit character in pixels. Controls spacing and allows fine-tuning if the font strip has a different character width.
+</ParamField>
+
+<ParamField path="FONT_SCALE" type="float">
+  Vertical scale factor for the character glyphs. `0.8` makes the digits slightly shorter than the full cell height, useful when the dashboard area is compact.
+</ParamField>
+
+<ParamField path="FONT_OFFSET" type="float">
+  Vertical offset applied to digit rendering within the cell. Adjust to nudge digits up or down when they do not centre-align naturally.
+</ParamField>
+
+<ParamField path="COUNT" type="integer">
+  Number of digit columns in the readout. `6` digits supports odometer values up to 999 999 km.
+</ParamField>
+
+<ParamField path="BACKGROUND" type="r, g, b (or scalar)">
+  Background colour drawn beneath the digits. `0.08` (scalar shorthand for `0.08, 0.08, 0.08`) gives a near-black background that prevents the mesh texture from bleeding through.
+</ParamField>
+
+<ParamField path="COLOR" type="r, g, b">
+  Digit colour. `1, 1, 1` = white. The digits will be tinted by this value before being blended onto the mesh.
+</ParamField>
+
+<ParamField path="JITTER" type="float">
+  Amount of random per-digit jitter to simulate mechanical drum wobble. `0.07` gives a believable aged electromechanical feel; `0` for modern LCD-style clarity.
+</ParamField>
+
+<ParamField path="MOVEMENT_INTERVAL" type="float (km)">
+  Distance in kilometres between each digit increment for the last digit. `5` means the units digit steps every 5 km (total odometer scale); `1` for trip meter tenths.
+</ParamField>
+
+<ParamField path="OUTPUT_MULT" type="float">
+  Multiplier applied to the distance value before display. `1` = kilometres. Use `0.621371` to display miles.
+</ParamField>
+
+<ParamField path="UPPER_BOUND" type="integer">
+  Maximum value before the display wraps around. `999999` is typical for total odometers.
+</ParamField>
+
+---
+
+## Real-World Example — RUF Yellowbird
+
+The Yellowbird's dashboard mesh is named `polymsh_detached20`. Both odometers share the same mesh but sit at different UV positions on the 1:1 texture.
+
+```ini
+[INSTRUMENTS]
+SPEED_LAG   = 0.7
+SPEED_LIMIT = 270
+
+[ODOMETER_MAIN]
+NAME             = polymsh_detached20
+FONT             = odometer_font
+BLEND_MODE       = 0
+POSITION         = 261, 67
+SIZE             = 72, 15
+DIGIT_WIDTH      = 6
+FONT_SCALE       = 0.8
+FONT_OFFSET      = 0.1
+COUNT            = 6
+BACKGROUND       = 0.08
+COLOR            = 1, 1, 1
+JITTER           = 0.0
+MOVEMENT_INTERVAL = 5
+OUTPUT_MULT      = 1
+
+[ODOMETER_TRIP]
+NAME             = polymsh_detached20
+FONT             = odometer_font
+BLEND_MODE       = 0
+POSITION         = 274, 116
+SIZE             = 48, 16
+DIGIT_WIDTH      = 6
+FONT_SCALE       = 0.8
+FONT_OFFSET      = 0.1
+COUNT            = 4
+BACKGROUND       = 0.08
+COLOR            = 1, 1, 1
+JITTER           = 0.0
+MOVEMENT_INTERVAL = 1
+```
+
+The BMW M3 E30 config uses the same technique but targets a different mesh (`INT_DIALS_SUB0`) with slightly larger digits:
+
+```ini
+[ODOMETER_MAIN]
+NAME         = INT_DIALS_SUB0
+FONT         = odometer_font
+BLEND_MODE   = 0
+POSITION     = 83, 262
+SIZE         = 119, 25
+DIGIT_WIDTH  = 11
+COUNT        = 6
+BACKGROUND   = 0.08, 0.08, 0.09
+COLOR        = 1, 1, 1
+JITTER       = 0.07
+MOVEMENT_INTERVAL = 5
+
+[ODOMETER_TRIP]
+NAME         = INT_DIALS_SUB0
+POSITION     = 83, 335
+SIZE         = 121, 25
+DIGIT_WIDTH  = 11
+COUNT        = 5
+LAST_DIGIT_COLOR            = 0, 0, 0
+LAST_DIGIT_BACKGROUND       = 1, 1, 1
+LAST_DIGIT_BACKGROUND_LOCATION = 99, 19
+JITTER       = 0.09
+MOVEMENT_INTERVAL = 1
+```
+
+<Note>
+  `LAST_DIGIT_BACKGROUND` and `LAST_DIGIT_BACKGROUND_LOCATION` let you draw a white box behind the tenths digit on a trip meter, producing the classic mechanical odometer look where the fractional digit has a different background.
+</Note>
+
+---
+
+## Dashboard Warning Indicators
+
+CSP can light up or dim named meshes in response to specific car states. All sections use `NAME` to identify the target mesh and `COLOR` for the active emissive value.
+
+<Accordion title="[EMISSIVE_ABS_X] — ABS warning light">
+  Glows while the ABS system is active (intervening). Use `OFF_COLOR` for the dim always-on state (warning light test at startup).
+
+  ```ini
+  [EMISSIVE_ABS_0]
+  NAME      = abs_indicator
+  COLOR     = 0, 0, 0
+  OFF_COLOR = 24, 12, 0
+  ```
+</Accordion>
+
+<Accordion title="[EMISSIVE_BATTERY_X] — Battery / alternator warning">
+  Activates when the alternator output falls below a threshold (engine off while accessories are on, or alternator failure).
+
+  ```ini
+  [EMISSIVE_BATTERY_0]
+  COLOR = 12, 0, 0
+  ```
+</Accordion>
+
+<Accordion title="[EMISSIVE_ENGINE_X] — Check engine / oil pressure warning">
+  Lights up on engine fault conditions.
+
+  ```ini
+  [EMISSIVE_ENGINE_0]
+  NAME  = engine_indicator
+  COLOR = 24, 12, 0
+  ```
+</Accordion>
+
+<Accordion title="[EMISSIVE_HANDBRAKE_X] — Handbrake indicator">
+  Active whenever the handbrake input is engaged.
+
+  ```ini
+  [EMISSIVE_HANDBRAKE_0]
+  NAME      = _ext_dashboard_handbrake
+  COLOR     = 24, 0, 0
+  LAG       = 0.0
+  LOCATION  = NONE
+  ```
+</Accordion>
+
+<Accordion title="[EMISSIVE_AIRBAG_X] — Airbag / SRS warning">
+  Lights up on a significant impact that would trigger the airbag system.
+
+  ```ini
+  [EMISSIVE_AIRBAG_0]
+  COLOR = 12, 0, 0
+  ```
+</Accordion>
+
+<Note>
+  All emissive indicator sections accept a `NAME` field matching a mesh in the KN5. If `NAME` is omitted, the section is ignored. The `COLOR` value follows the standard `r, g, b[, brightness]` format.
+</Note>

@@ -1,0 +1,135 @@
+---
+title: "Grass FX: Procedural Grass and Surface Coverage"
+sidebarTitle: "Grass FX"
+description: "Configure CSP Grass FX to generate procedural grass on track surfaces with quality presets, shadow casting, and Extra FX integration."
+---
+
+Grass FX procedurally generates dense grass coverage on any track surface that the CSP track author (or the automatic detection system) has tagged as a grass zone. Instead of relying on hand-placed mesh grass — which varies wildly in quality between tracks — Grass FX spawns geometry at runtime using a multi-pass generation pipeline whose resolution and blade density are governed by a simple quality preset. The result is lush, consistent coverage across all tracks. The full configuration lives in `grass_fx.ini`.
+
+<Warning>
+  Grass FX can be expensive, particularly at the **High** and **Very High** quality presets. On mid-range hardware, `QUALITY=2` (Medium) is recommended as a starting point. Shadow casting (`CAST_SHADOWS`) and the Extra FX pass (`EXTRAFX_PASS`) each add a further performance cost and should only be enabled if you have GPU headroom.
+</Warning>
+
+## Enabling Grass FX
+
+```ini
+[BASIC]
+ENABLED=1
+QUALITY=2
+SKIP_LOADING_OLD_MESHES=0
+```
+
+<ParamField path="ENABLED" type="integer" default="1">
+  Master switch for Grass FX. Setting this to `0` disables procedural grass entirely. Any hand-placed grass meshes that the track author included will still be visible unless `SKIP_LOADING_OLD_MESHES` is also enabled.
+</ParamField>
+
+<ParamField path="QUALITY" type="integer" default="2">
+  Controls the generation map resolution and the number of blade-density passes, directly determining how thick and detailed the grass looks as well as the GPU and VRAM cost.
+
+  | Value | Preset    | Map resolution | Performance impact |
+  |-------|-----------|----------------|--------------------|
+  | `0`   | Very Low  | 512 × 512      | Minimal            |
+  | `1`   | Low       | 512 × 512      | Low                |
+  | `2`   | Medium    | 1024 × 1024    | Moderate           |
+  | `3`   | High      | 1024 × 1024    | High               |
+  | `4`   | Very High | 1024 × 1024    | Very high          |
+
+  At **Very High**, CSP runs five generation passes with blade densities as fine as 0.25 m between instances, which can be extremely demanding on large open-world-style tracks.
+</ParamField>
+
+<ParamField path="SKIP_LOADING_OLD_MESHES" type="integer" default="0">
+  When set to `1`, CSP skips loading the legacy hand-placed grass meshes that some tracks ship. This can **slightly reduce loading times** and lower both RAM and VRAM consumption, since those meshes are redundant when Grass FX is active. Safe to enable in most cases.
+</ParamField>
+
+---
+
+## Rendering
+
+```ini
+[RENDERING]
+SMOOTHER_BLENDING=0
+CAST_SHADOWS=0
+EXTRAFX_PASS=0
+```
+
+<ParamField path="SMOOTHER_BLENDING" type="integer" default="0">
+  Enables a higher-quality alpha-to-coverage blending technique for grass blades when **MSAA** is active. Produces softer, more natural-looking blade silhouettes but **negatively affects performance**. Only beneficial when MSAA is on; has no visible effect without it.
+</ParamField>
+
+<ParamField path="CAST_SHADOWS" type="integer" default="0">
+  Allows grass geometry to cast shadows onto the track surface and nearby objects when a compatible shadow pass is available. Disabled by default because it can add a significant rendering cost, especially at high quality where blade counts are very large.
+</ParamField>
+
+<ParamField path="EXTRAFX_PASS" type="integer" default="0">
+  Renders grass during the **Extra FX** secondary pass, allowing it to receive correct TAA, SSLR, and ambient occlusion treatment. Only useful if Extra FX is active; has no effect when Extra FX is disabled.
+</ParamField>
+
+<Note>
+  `EXTRAFX_PASS` requires **Extra FX** (`extra_fx.ini → [BASIC] ENABLED=1`) to be running. Enabling this parameter while Extra FX is off produces no change.
+</Note>
+
+---
+
+## Generation Presets (Reference)
+
+The internal `[GENERATION_0]` through `[GENERATION_4]` sections are hidden developer parameters that define the per-quality-level map resolution and multi-pass blade density. They are not user-configurable, but the table below summarises the key differences for each quality level.
+
+<Accordion title="Generation pass details by quality preset">
+
+| Quality | Map resolution | Passes | Finest step (m) |
+|---------|---------------|--------|-----------------|
+| 0 — Very Low  | 512  | 4 | 1.0  |
+| 1 — Low       | 512  | 4 | 1.0  |
+| 2 — Medium    | 1024 | 5 | 0.5  |
+| 3 — High      | 1024 | 5 | 0.5  |
+| 4 — Very High | 1024 | 5 | 0.25 |
+
+Each pass subdivides blade placement further. The extra passes at **Medium** and above are what produce the dense carpet look; **Very High** uses a 0.25 m step on its final pass, meaning up to four blades per square metre before culling.
+
+</Accordion>
+
+---
+
+## Recommended Configuration Examples
+
+<Tabs>
+  <Tab title="Performance (Low-end GPU)">
+    ```ini
+    [BASIC]
+    ENABLED=1
+    QUALITY=0
+    SKIP_LOADING_OLD_MESHES=1
+
+    [RENDERING]
+    SMOOTHER_BLENDING=0
+    CAST_SHADOWS=0
+    EXTRAFX_PASS=0
+    ```
+  </Tab>
+  <Tab title="Balanced (Mid-range GPU)">
+    ```ini
+    [BASIC]
+    ENABLED=1
+    QUALITY=2
+    SKIP_LOADING_OLD_MESHES=1
+
+    [RENDERING]
+    SMOOTHER_BLENDING=0
+    CAST_SHADOWS=0
+    EXTRAFX_PASS=1
+    ```
+  </Tab>
+  <Tab title="Quality (High-end GPU)">
+    ```ini
+    [BASIC]
+    ENABLED=1
+    QUALITY=3
+    SKIP_LOADING_OLD_MESHES=0
+
+    [RENDERING]
+    SMOOTHER_BLENDING=1
+    CAST_SHADOWS=1
+    EXTRAFX_PASS=1
+    ```
+  </Tab>
+</Tabs>

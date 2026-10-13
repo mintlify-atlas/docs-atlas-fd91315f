@@ -1,0 +1,61 @@
+---
+title: "Custom Shaders Patch Extension Config: What It Is"
+sidebarTitle: "Introduction"
+description: "Learn what the CSP Extension Config repository is, how it works with Assetto Corsa Custom Shaders Patch, and what visual enhancements it enables."
+---
+
+The CSP Extension Config repository is the data layer that powers the visual enhancements delivered by Custom Shaders Patch (CSP) for Assetto Corsa. On its own, CSP is a DLL-level mod (`dwrite.dll`) that hooks into AC's rendering pipeline and exposes hundreds of new capabilities — dynamic track lighting, physically-based rain, ambient occlusion patches, Weather FX scripting, and more. What actually switches those capabilities on, and tells them *what* to render, is this repository: a large, community-maintained collection of INI configuration files, Lua scripts, and texture assets that CSP reads at runtime.
+
+## How the Three Layers Fit Together
+
+Understanding the relationship between Assetto Corsa, CSP, and this config repo is the key to knowing where to look when something looks wrong or when you want to contribute.
+
+| Layer | What it is | Where it lives |
+|---|---|---|
+| **Assetto Corsa** | The base game executable (`acs.exe`) | `assettocorsa/` |
+| **Custom Shaders Patch** | The DLL mod that extends AC's renderer | `assettocorsa/dwrite.dll` |
+| **Extension Config** | INI files, Lua scripts, textures that configure CSP | `assettocorsa/extension/` |
+
+CSP reads everything under `extension/` on startup (and continuously watches files for changes while the game is running). The config repo is what populates that folder. Without configs, CSP is a capable renderer with nothing to render: no track lights, no tyre blur textures, no weather scripts, no per-car material overrides.
+
+## What the Repository Contains
+
+The repo ships content in several major categories, each targeting a different CSP subsystem:
+
+- **Car configs** (`config/cars/`) — per-car INI files that define headlight geometry, emissive brake discs, PBR material overrides, tyre blur setups, and more. Kunos cars live in `kunos/`, community mods in `mods/`, and reusable templates in `common/`.
+- **Track configs** (`config/tracks/`) — per-track INI files that add dynamic lighting (street lamps, pit-lane floods, race start gantries), material upgrades, Weather FX conditions, and grass. Shared condition presets live in `common/`.
+- **Weather FX** (`config/weather_fx.ini` + `weather-controllers/`) — the global weather system configuration plus the default Lua weather controller script, which is in the public domain and intended as a starting point for custom implementations.
+- **Rain FX** (`config/rain_fx.ini`) — settings governing rain intensity curves, road wetness accumulation, and windscreen effects.
+- **Extra FX** (`config/extra_fx.ini`) — the deferred-rendering extra-pass module, controlling depth-of-field, SSAO, bloom, and lens flare behaviour.
+- **Particles FX** (`config/particles_fx.ini`) — smoke, exhaust, and collision particle simulation.
+- **Grass FX** (`config/grass_fx.ini`) — procedural trackside grass generation and wind response.
+- **Lighting FX** (`config/lighting_fx.ini`) — global ambient and emissive lighting multipliers.
+- **Lua scripts** (`lua/`) — camera modes (chaser, cockpit), FFB post-processing, fireworks, and new gameplay modes.
+- **VAO patches** (`vao-patches/`) — pre-baked vertex ambient occlusion data that adds contact shadows to cars and track objects without a performance cost.
+- **Textures** (`textures/`) — DDS and PNG assets for tyre blur, grass billboards, particles, weather overlays, colour-grading LUTs, and national flags.
+- **Backgrounds** (`backgrounds/`) — loading-screen images keyed to specific tracks.
+
+## Live Reload
+
+One of the most useful features of the CSP config system is live reload. The `WATCH_FOR_CHANGES` flag (set to `1` in `config/general.ini`) instructs CSP to monitor config files on disk. When you save a change to a car or track INI while the game is running, CSP reloads that config immediately — no restart required. Partial reload (`USE_PARTIAL_RELOAD=1`) limits the work to only the settings that actually changed, so the transition is seamless. This makes iterating on a lighting setup or material tweak fast and interactive.
+
+## Auto-Distribution via Content Manager
+
+Users who install AC through [AC Content Manager](https://acstuff.club/app/) never need to manually download this repository. A server continuously pulls from the repo at a five-minute interval, converts the content into a signed distribution package, and exposes it via the Content Manager API. Content Manager fetches the latest configs automatically whenever a car or track is loaded that has updated configs available. This ensures the majority of AC players always have current lighting and material data without any manual intervention.
+
+## Start Exploring
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install configs via Content Manager or by manually cloning the repository into your AC install.
+  </Card>
+  <Card title="File Structure" icon="folder-tree" href="/file-structure">
+    Understand how config files, textures, Lua scripts, and VAO patches are organized on disk.
+  </Card>
+  <Card title="Car Configs" icon="car" href="https://github.com/ac-custom-shaders-patch/acc-extension-config/tree/master/config/cars">
+    Browse per-car INI files for Kunos content and community mods.
+  </Card>
+  <Card title="Track Configs" icon="road" href="https://github.com/ac-custom-shaders-patch/acc-extension-config/tree/master/config/tracks">
+    Browse per-track INI files covering lights, weather conditions, and materials.
+  </Card>
+</CardGroup>

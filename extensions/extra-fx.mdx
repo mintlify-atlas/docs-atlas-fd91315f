@@ -1,0 +1,341 @@
+---
+title: "Extra FX: TAA, SSLR, Motion Blur, and Ambient Occlusion"
+sidebarTitle: "Extra FX"
+description: "Configure CSP Extra FX post-processing for temporal anti-aliasing, screen-space local reflections, motion blur, ASSAO, and HBAO ambient occlusion."
+---
+
+Extra FX adds a secondary rendering pass to Assetto Corsa that enables a suite of post-processing effects unavailable in the base game: temporal anti-aliasing (TAA), screen-space local reflections (SSLR), a physically based motion blur, Intel's ASSAO ambient occlusion, NVIDIA's HBAO+ ambient occlusion, volumetric headlights, screen-space lighting with light bounces, and a fog/heat-distortion blur. All of these are gated on the `[BASIC]` section and individually toggled in their own sub-sections within `extra_fx.ini`. This page documents every user-configurable parameter.
+
+<Warning>
+  Extra FX only works in **single-screen mode with post-processing enabled**. It is **not compatible with fullscreen mode**, **VR**, or AC's native motion blur. Triple-screen support exists but is disabled by default and carries a major performance cost.
+</Warning>
+
+## Enabling Extra FX
+
+```ini
+[BASIC]
+ENABLED=0
+ALLOW_IN_TRIPLE=0
+EXTERIOR_ONLY=0
+DEPTH_FIX=1
+```
+
+<ParamField path="ENABLED" type="integer" default="0">
+  Master switch. Set to `1` to activate the secondary render pass. Extra FX is **disabled by default** because it has non-trivial performance implications that depend heavily on which sub-features you enable.
+</ParamField>
+
+<ParamField path="ALLOW_IN_TRIPLE" type="integer" default="0">
+  Enables Extra FX in triple-screen setups. This carries a **major performance hit** — each screen requires its own full pass — and is only recommended on very high-end systems.
+</ParamField>
+
+<ParamField path="EXTERIOR_ONLY" type="integer" default="0">
+  Restricts when the Extra FX pass runs.
+
+  | Value | Condition            |
+  |-------|----------------------|
+  | `0`   | Always active        |
+  | `1`   | Exterior views only  |
+  | `2`   | Replays only         |
+</ParamField>
+
+<ParamField path="DEPTH_FIX" type="integer" default="1">
+  A compatibility fix that corrects depth-buffer precision issues introduced by the secondary pass. Leaving this on is strongly recommended; turning it off may produce visual artefacts but the performance change is unpredictable.
+</ParamField>
+
+---
+
+## Motion Blur
+
+CSP's own motion blur implementation, independent of and incompatible with AC's built-in motion blur. Disable AC's motion blur in the video settings before enabling this.
+
+```ini
+[MOTION_BLUR]
+ENABLED=0
+EXTERIOR_ONLY=0
+MULT=0.5
+QUALITY_2=1
+JITTER_MULT=1
+```
+
+<ParamField path="ENABLED" type="integer" default="0">
+  Activates the Extra FX motion blur pass.
+</ParamField>
+
+<ParamField path="EXTERIOR_ONLY" type="integer" default="0">
+  Same three-way condition as `BASIC/EXTERIOR_ONLY`: `0` = always, `1` = exterior only, `2` = replays only.
+</ParamField>
+
+<ParamField path="MULT" type="number" default="0.5">
+  Controls the overall strength of the blur effect. Range: **0.0 – 1.0**. Higher values create more pronounced trailing at speed.
+</ParamField>
+
+<ParamField path="QUALITY_2" type="integer" default="1">
+  Blur quality preset.
+
+  | Value | Quality |
+  |-------|---------|
+  | `0`   | Low     |
+  | `1`   | Medium  |
+  | `2`   | High    |
+</ParamField>
+
+<ParamField path="JITTER_MULT" type="number" default="1">
+  Amount of temporal noise injected to break up banding artefacts in the blur. Range: **0.5 – 1.0**. Lowering this removes dithering but may reveal horizontal banding on fast-moving objects.
+</ParamField>
+
+---
+
+## TAA (Temporal Anti-Aliasing)
+
+TAA accumulates sub-pixel information across multiple frames to produce smooth edges without the raw cost of MSAA.
+
+```ini
+[TAA]
+ENABLED=1
+SAMPLE_SPREAD_MULT=1
+EXTERIOR_ONLY=0
+HISTORY_SHARPEN=0.3
+EXTRA_SHARPEN_PASS=0.5
+BLUR_NEW=0.5
+```
+
+<ParamField path="ENABLED" type="integer" default="1">
+  Activates TAA. On by default when Extra FX is enabled.
+</ParamField>
+
+<ParamField path="SAMPLE_SPREAD_MULT" type="number" default="1">
+  Controls the size of the jitter pattern used to spread sub-pixel samples. Range: **0.0 – 1.0**. Lower values mean tighter jitter, less ghosting, but slightly noisier results.
+</ParamField>
+
+<ParamField path="EXTERIOR_ONLY" type="integer" default="0">
+  `0` = always, `1` = exterior only, `2` = replays only.
+</ParamField>
+
+<ParamField path="HISTORY_SHARPEN" type="number" default="0.3">
+  Sharpening applied to the previous frame's history buffer before it is blended with the current frame. Range: **0.0 – 0.5**. Higher values can tighten fine detail but may increase ghosting on moving objects.
+</ParamField>
+
+<ParamField path="EXTRA_SHARPEN_PASS" type="number" default="0.5">
+  Strength of an additional post-TAA sharpening pass. Range: **0.0 – 1.0**. For the best image quality, set this to `0` and instead enable AMD FidelityFX CAS in the **Graphics Adjustments** section.
+</ParamField>
+
+<ParamField path="BLUR_NEW" type="number" default="0.5">
+  Blur applied to pixels that do not yet have accumulated TAA history (e.g. newly revealed areas after fast camera movement). Range: **0.0 – 1.0**. Higher values prevent raw pixel noise from appearing momentarily in those areas at the cost of a brief soft look.
+</ParamField>
+
+<Tip>
+  For the sharpest result, set `EXTRA_SHARPEN_PASS=0` and enable **FidelityFX CAS** (`FFXCAS_PASS=1`) under `[ANTIALIASING]` in `graphics_adjustments.ini`.
+</Tip>
+
+---
+
+## SSLR (Screen-Space Local Reflections)
+
+SSLR ray-marches the depth buffer to find reflection data already present on screen, producing accurate close-range reflections on wet roads, puddles, and shiny bodywork without the cost of a full cubemap re-render.
+
+```ini
+[SSLR]
+ENABLED=1
+EXTERIOR_ONLY=0
+TRACING_QUALITY3=3
+STEPS_SIMPLE=36
+STEPS_HIZ=80
+EXTRA_SPECULARS=1
+SCALE=1
+```
+
+<ParamField path="ENABLED" type="integer" default="1">
+  Activates SSLR. On by default when Extra FX is enabled.
+</ParamField>
+
+<ParamField path="EXTERIOR_ONLY" type="integer" default="0">
+  `0` = always, `1` = exterior only, `2` = replays only.
+</ParamField>
+
+<ParamField path="TRACING_QUALITY3" type="integer" default="3">
+  Ray-marching algorithm and quality tier.
+
+  | Value | Mode                                                                                        |
+  |-------|---------------------------------------------------------------------------------------------|
+  | `0`   | Low (Old) — up to ~8 steps, misses reflections often                                        |
+  | `1`   | Medium (Old) — up to ~16 steps                                                              |
+  | `2`   | High (Old) — up to ~32 steps, still inconsistent                                            |
+  | `3`   | **Simple (New)** — stable with configurable steps; slight blurriness avoids missed rays     |
+  | `4`   | Hi-Z (New) — hierarchical Z ray-march; finds even 1-pixel-wide reflections, most expensive |
+
+  The old methods use too few steps to find reflections reliably. The new methods are recommended. **Simple (New)** is the default and offers a good quality/performance balance.
+</ParamField>
+
+<ParamField path="STEPS_SIMPLE" type="integer" default="36">
+  Number of ray-march steps for `Simple (New)` mode. Works best when divisible by 4. Valid range: **24 – 80**. Increase for fewer missed reflections at the cost of GPU time.
+</ParamField>
+
+<ParamField path="STEPS_HIZ" type="integer" default="80">
+  Number of Hi-Z ray-march steps for `Hi-Z (New)` mode. Valid range: **40 – 200**. Values of 150–250 produce near-perfect results but are expensive; 80 is a reasonable default.
+</ParamField>
+
+<ParamField path="EXTRA_SPECULARS" type="integer" default="1">
+  Adds elongated specular highlights to wet track surfaces — the long smeared reflections of headlights and track lights on a rain-soaked road. Purely visual; small GPU cost.
+</ParamField>
+
+<ParamField path="SCALE" type="number" default="1">
+  Internal resolution of the SSLR buffer as a fraction of the output resolution. Range: **0.5 – 1.0**. Lowering to `0.5` halves the GPU cost at the expense of softer reflections.
+</ParamField>
+
+---
+
+## ASSAO (Ambient Occlusion by Intel)
+
+Intel's Adaptive Screen Space Ambient Occlusion adds contact shadows and cavity darkening to geometry. It cannot be active at the same time as HBAO+ or SSAO.
+
+```ini
+[ASSAO]
+ENABLED=0
+EXTERIOR_ONLY=0
+OPACITY=0.8
+QUALITY=2
+```
+
+<ParamField path="ENABLED" type="integer" default="0">
+  Activates ASSAO. Mutually exclusive with `HBAO/ENABLED` and `SSAO/ENABLED`.
+</ParamField>
+
+<ParamField path="EXTERIOR_ONLY" type="integer" default="0">
+  When set to `1`, disables ASSAO for interior/cockpit cameras. Useful for open-wheel cars where the tight cockpit could look over-darkened.
+</ParamField>
+
+<ParamField path="OPACITY" type="number" default="0.8">
+  Overall blend strength of the AO layer over the scene. Range: **0.0 – 1.0**. Lower values produce subtler contact shadows.
+</ParamField>
+
+<ParamField path="QUALITY" type="integer" default="2">
+  ASSAO quality preset.
+
+  | Value | Quality                                      |
+  |-------|----------------------------------------------|
+  | `-1`  | Lowest                                       |
+  | `0`   | Low                                          |
+  | `1`   | Medium                                       |
+  | `2`   | High                                         |
+  | `3`   | Very High (adaptive — most expensive)        |
+</ParamField>
+
+---
+
+## HBAO+ (Ambient Occlusion by NVIDIA)
+
+NVIDIA's Horizon-Based Ambient Occlusion Plus produces high-quality contact shadows. Cannot be active alongside ASSAO or SSAO.
+
+```ini
+[HBAO]
+ENABLED=0
+EXTERIOR_ONLY=0
+OPACITY=0.8
+```
+
+<ParamField path="ENABLED" type="integer" default="0">
+  Activates HBAO+. Mutually exclusive with `ASSAO/ENABLED` and `SSAO/ENABLED`.
+</ParamField>
+
+<ParamField path="EXTERIOR_ONLY" type="integer" default="0">
+  `0` = always, `1` = exterior only, `2` = replays only.
+</ParamField>
+
+<ParamField path="OPACITY" type="number" default="0.8">
+  Blend strength of the HBAO+ layer. Range: **0.0 – 1.0**.
+</ParamField>
+
+---
+
+## Screen-Space Lighting & Light Bounce
+
+Extra FX enables a screen-space lighting pass that handles emissive glow, flame and spark lighting, and inter-surface light bouncing.
+
+```ini
+[SS_LIGHTING]
+ENABLED=1
+SCALE=1
+EMISSIVE=1
+
+[LIGHT_BOUNCE]
+ENABLED=1
+CARS=1
+```
+
+<ParamField path="SS_LIGHTING/ENABLED" type="integer" default="1">
+  Activates the screen-space lighting pass. Required for light bouncing, flame light, and spark illumination.
+</ParamField>
+
+<ParamField path="SS_LIGHTING/SCALE" type="number" default="1">
+  Resolution of the SS lighting buffer. Range: **0.1 – 1.0**.
+</ParamField>
+
+<ParamField path="SS_LIGHTING/EMISSIVE" type="integer" default="1">
+  Enables glowing emissive surfaces (requires the car or track config to mark meshes as emissive).
+</ParamField>
+
+<ParamField path="LIGHT_BOUNCE/ENABLED" type="integer" default="1">
+  Adds track-surface light bouncing — light reflecting off the road back upward. Only effective on tracks with compatible configuration.
+</ParamField>
+
+<ParamField path="LIGHT_BOUNCE/CARS" type="integer" default="1">
+  Enables light bouncing off car bodywork onto surrounding geometry.
+</ParamField>
+
+---
+
+## Volumetric Headlights
+
+```ini
+[VOLUMETRIC_LIGHTS]
+ENABLED=1
+EXTERIOR_ONLY=0
+SCALE=0.2
+INTENSITY_MULT=1.5
+```
+
+<ParamField path="VOLUMETRIC_LIGHTS/ENABLED" type="integer" default="1">
+  Renders volumetric cone effects for headlights, visible in fog and at night.
+</ParamField>
+
+<ParamField path="VOLUMETRIC_LIGHTS/SCALE" type="number" default="0.2">
+  Internal resolution of the volumetric buffer. Range: **0.08 – 0.32**. The default `0.2` is intentionally low to keep costs manageable; increasing it improves edge quality.
+</ParamField>
+
+<ParamField path="VOLUMETRIC_LIGHTS/INTENSITY_MULT" type="number" default="1.5">
+  Brightness of the volumetric cone. Range: **0.0 – 2.0**.
+</ParamField>
+
+---
+
+## Fog & Heat Blur
+
+```ini
+[FOG_BLUR]
+ENABLED=1
+HEATING=1
+EXTERIOR_ONLY=0
+DISTANCE_MULT=1.0
+```
+
+<ParamField path="FOG_BLUR/ENABLED" type="integer" default="1">
+  Adds a depth-aware blur to represent atmospheric haze and fog density variation.
+</ParamField>
+
+<ParamField path="FOG_BLUR/HEATING" type="integer" default="1">
+  Includes heat-shimmer distortion in the fog-blur pass, so hot exhaust plumes and road surfaces waver visually.
+</ParamField>
+
+<ParamField path="FOG_BLUR/DISTANCE_MULT" type="number" default="1.0">
+  Scales the distance at which the distant blur starts to take effect. Range: **0.5 – 2.5**.
+</ParamField>
+
+---
+
+## FidelityFX Super Resolution (FSR)
+
+FSR is configured in `graphics_adjustments.ini`, not in `extra_fx.ini`, but it works in tandem with TAA. See the [Lighting FX & Graphics Adjustments](/extensions/lighting-fx) page for full FSR documentation.
+
+<Tip>
+  For the sharpest output with TAA enabled, the recommended workflow is: set `TAA/EXTRA_SHARPEN_PASS=0`, then enable FSR (AMD FidelityFX Super Resolution) in **Graphics Adjustments** with your preferred quality preset.
+</Tip>

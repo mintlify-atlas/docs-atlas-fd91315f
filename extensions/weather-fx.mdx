@@ -1,0 +1,192 @@
+---
+title: "Weather FX: Dynamic 24-Hour Weather for Assetto Corsa"
+sidebarTitle: "Weather FX"
+description: "Configure CSP's Weather FX system for dynamic 24-hour cycles, scriptable Lua controllers, star fields, cloud quality, and headlight automation."
+---
+
+Weather FX is CSP's fully dynamic, fully customizable weather system that unlocks genuine 24-hour race cycles in Assetto Corsa. It replaces the static time-of-day engine with a Lua-scripted pipeline: a **controller** script decides how conditions change over time (wind speed, precipitation, temperature), while a separate **implementation** (style) script controls exactly how the sky, clouds, and lighting look. Popular packages such as Sol and Pure ship both halves of this pipeline. This page covers every user-facing configuration parameter found in `weather_fx.ini`.
+
+<Note>
+  Controller settings (fixed weather, advanced schedules, etc.) have moved to the **Quick Drive** weather-type selector inside Content Manager. You no longer edit them here.
+</Note>
+
+## Enabling Weather FX
+
+```ini
+[BASIC]
+ENABLED=1
+CONTROLLER=sol
+IMPLEMENTATION=sol
+```
+
+<ParamField path="ENABLED" type="integer" default="1">
+  Master switch for the entire Weather FX module. Set to `0` to revert to Assetto Corsa's original static sky. Disabling this also disables anything that depends on a dynamic sky (dynamic ambient, live cloud shadows, etc.).
+</ParamField>
+
+<ParamField path="CONTROLLER" type="string" default="sol">
+  Name of the Lua controller script that drives weather progression. CSP looks for `controller.lua` inside `extension/weather-controllers/{name}/`. Bundled options include `sol` and `pure`; third-party controllers can be dropped into the same folder.
+</ParamField>
+
+<ParamField path="IMPLEMENTATION" type="string" default="sol">
+  Name of the Lua weather-style script that governs visual appearance — sky colour, cloud shape, lighting colour temperature, and more. CSP looks for `weather.lua` inside `extension/weather/{name}/`. Must match a package that ships a compatible implementation.
+</ParamField>
+
+---
+
+## Performance
+
+These options let you trade visual quality for frame rate. Most defaults are conservative; the compatible sky shader, extra fidelity, and additional effects are all on by default.
+
+```ini
+[PERFORMANCE]
+USE_COMPATIBLE_SKY_SHADER=1
+HIGH_QUALITY_STARS=1
+EXTRA_CLOUDS_FIDELITY=1
+ADDITIONAL_EFFECTS=1
+DETAILED_CLOUD_SHADOWS=0
+SLOW_REFLECTIONS_UPDATE=0
+```
+
+<ParamField path="USE_COMPATIBLE_SKY_SHADER" type="integer" default="1">
+  Keeps the legacy-compatible sky shader active. On modern GPUs, setting this to `0` can recover roughly **2 % FPS** by switching to a faster path, but may cause rendering artefacts on some driver versions.
+</ParamField>
+
+<ParamField path="HIGH_QUALITY_STARS" type="integer" default="1">
+  Renders night-sky stars at extra-sharp resolution. Purely cosmetic; performance impact is negligible. Set to `0` if you want to shave a tiny amount off night-race GPU cost.
+</ParamField>
+
+<ParamField path="EXTRA_CLOUDS_FIDELITY" type="integer" default="1">
+  Adds additional geometric and shading detail to volumetric clouds. Disabling (`0`) lowers cloud quality noticeably but frees some GPU bandwidth, which can help on mid-range hardware.
+</ParamField>
+
+<ParamField path="ADDITIONAL_EFFECTS" type="integer" default="1">
+  Allows weather scripts to spawn custom visual effects (e.g. lightning flashes, heat shimmer overlays). Set to `0` to suppress all script-driven extras without disabling the controller itself.
+</ParamField>
+
+<ParamField path="DETAILED_CLOUD_SHADOWS" type="integer" default="0">
+  Doubles the resolution of cloud-shadow maps projected onto the track. Produces much sharper cloud-shadow edges but carries a meaningful GPU cost. Leave at `0` unless your system has headroom to spare.
+</ParamField>
+
+<ParamField path="SLOW_REFLECTIONS_UPDATE" type="integer" default="0">
+  Reduces the frequency at which the sky is reprojected into environment reflection cubemaps. Enabling (`1`) can help frame pacing on GPU-limited systems at the cost of slightly stale reflections on shiny car paints.
+</ParamField>
+
+---
+
+## Miscellaneous
+
+Gameplay and automation options that sit outside pure rendering.
+
+```ini
+[MISCELLANEOUS]
+RESET_TIME_ON_SUBSEQUENT_SESSIONS=1
+FORCE_HEADLIGHTS=0
+FORCE_ONLINE_HEADLIGHTS=0
+SWITCH_HEADLIGHTS_WITH_AI=0
+SWITCH_WIPERS_WITH_AI=1
+USE_MIRAGE_REFLECTIONS=0
+```
+
+<ParamField path="RESET_TIME_ON_SUBSEQUENT_SESSIONS" type="integer" default="1">
+  In **Quick Drive Weekend** mode, resets the clock to the start time of the next day when a subsequent session begins. Disable if you want time to carry over continuously across practice → qualifying → race.
+</ParamField>
+
+<ParamField path="FORCE_HEADLIGHTS" type="integer" default="0">
+  Forces all AI cars to keep their headlights on at all times, regardless of the ambient light level.
+</ParamField>
+
+<ParamField path="FORCE_ONLINE_HEADLIGHTS" type="integer" default="0">
+  Forces headlights on for all other player cars in an online session.
+</ParamField>
+
+<ParamField path="SWITCH_HEADLIGHTS_WITH_AI" type="integer" default="0">
+  When enabled, CSP automatically turns AI headlights on at dusk and off at dawn, mirroring what a human driver would do.
+</ParamField>
+
+<ParamField path="SWITCH_WIPERS_WITH_AI" type="integer" default="1">
+  Automatically activates and deactivates AI windscreen wipers based on current rain intensity. Recommended to leave on for immersion during wet races.
+</ParamField>
+
+<ParamField path="USE_MIRAGE_REFLECTIONS" type="integer" default="0">
+  Adds a mirage-like heat shimmer to ground reflections. Works best when paired with **Extra FX**'s heat distortion pass. Has a small GPU cost and is purely cosmetic.
+</ParamField>
+
+---
+
+## Static Reflections
+
+Controls how and when Assetto Corsa's static environment cubemap is refreshed by Weather FX.
+
+```ini
+[STATIC_REFLECTIONS]
+OCCASIONALLY_REFRESH=1
+REFRESH_FACE_DELAY=2.5
+INCLUDE_EMISSIVES=0
+```
+
+<ParamField path="OCCASIONALLY_REFRESH" type="integer" default="1">
+  Enables periodic re-rendering of the static reflection cubemap so that sky colour changes and moving clouds are captured. Without this, reflections on car paints stay frozen at the initial sky state for the entire session.
+</ParamField>
+
+<ParamField path="REFRESH_FACE_DELAY" type="number" default="2.5">
+  Time in seconds between individual cubemap face updates. Lower values give fresher reflections at a higher GPU cost. Valid range: **0.5 – 4.0 s** (rounded to 0.1 s).
+</ParamField>
+
+<ParamField path="INCLUDE_EMISSIVES" type="integer" default="0">
+  Includes emissive meshes (track lighting, glowing car parts) in the static cubemap renders. Makes car-paint reflections at night noticeably more realistic but adds GPU cost to each refresh cycle.
+</ParamField>
+
+---
+
+## Post-Processing Tweaks
+
+```ini
+[PP_TWEAKS]
+FULL_RESOLUTION=0
+```
+
+<ParamField path="FULL_RESOLUTION" type="integer" default="0">
+  Forces all Weather FX post-processing passes to run at full native resolution rather than a reduced internal resolution. Improves sharpness of atmospheric effects but **may reduce performance**, especially at 1440p and 4K.
+</ParamField>
+
+---
+
+## Post-Processing — First-Person View
+
+These overrides apply only when driving from the cockpit camera and allow you to strip out lens-simulation artefacts that break immersion.
+
+```ini
+[PP_FIRST_PERSON_VIEW]
+NO_ANAMORPHIC_GLARE=1
+NO_GHOST_GLARE=1
+NO_CHROMATIC_ABERRATION=0
+```
+
+<ParamField path="NO_ANAMORPHIC_GLARE" type="integer" default="1">
+  Suppresses the anamorphic lens-flare streaks in first-person view. Most players prefer this on; the effect is designed for cinematic cameras, not a driver's-eye perspective.
+</ParamField>
+
+<ParamField path="NO_GHOST_GLARE" type="integer" default="1">
+  Removes ghost-flare artefacts (secondary lens reflections) in first-person view.
+</ParamField>
+
+<ParamField path="NO_CHROMATIC_ABERRATION" type="integer" default="0">
+  When set to `1`, chromatic aberration is **enabled** for all cameras *except* first-person view. Assetto Corsa normally applies chromatic aberration globally; this option allows you to enjoy the effect on replay and external cameras while keeping the cockpit view clean.
+</ParamField>
+
+---
+
+## Experimental Tweaks
+
+```ini
+[TWEAKS]
+INCREASE_CONDITIONS_LIMITS=0
+```
+
+<ParamField path="INCREASE_CONDITIONS_LIMITS" type="integer" default="0">
+  Lifts the standard caps on weather parameters, allowing wind speeds above **35 km/h** and temperatures outside the normal **0 – 36 °C** range. Useful for testing extreme conditions or for scripted scenarios that require them. Not recommended for regular play as some physics and audio systems may behave unexpectedly at extreme values.
+</ParamField>
+
+<Warning>
+  The `[NOISE_VOLUME]` section (512 × 512 × 128 noise texture) is internal and hidden. It consumes approximately **180 MB of VRAM** and is not user-configurable.
+</Warning>

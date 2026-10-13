@@ -1,20 +1,70 @@
 ---
-title: "Introduction"
-description: "Welcome to your project"
+title: "Custom Shaders Patch — Extension Config"
+sidebarTitle: "Home"
+description: "Configuration files, Lua scripts, and resources that power visual enhancements for Assetto Corsa via the Custom Shaders Patch."
 ---
 
-Write a short description of your product here. What it does, who it's for, and what they can accomplish with it.
+The **Custom Shaders Patch Extension Config** repository contains every INI configuration file, Lua script, and texture resource that the [Custom Shaders Patch (CSP)](https://acstuff.club/patch/) loads to deliver enhanced lighting, dynamic weather, PBR materials, and physics-accurate visual effects inside Assetto Corsa. If you want to add lights to a modded car, configure night-time track illumination, script a weather controller, or tweak post-processing, this is the place to start.
 
-<Tip>
-  Ready to make this your own? Start by editing this page. Update your `docs.json` file to customize your site. Then fill out the [Quickstart](/quickstart) page.
-</Tip>
+<CardGroup cols={2}>
+  <Card title="Getting Started" icon="rocket" href="/introduction">
+    Understand what CSP Extension Config is and how it fits into your AC workflow.
+  </Card>
+  <Card title="Installation" icon="download" href="/installation">
+    Set up the repository manually or via Content Manager in minutes.
+  </Card>
+  <Card title="Car Configuration" icon="car" href="/cars/overview">
+    Add dynamic headlights, brake lights, emissive materials, and PBR shaders to any car.
+  </Card>
+  <Card title="Track Configuration" icon="road" href="/tracks/overview">
+    Configure track lighting, day/night conditions, and ground light bounce for any circuit.
+  </Card>
+  <Card title="Visual Extensions" icon="wand-magic-sparkles" href="/extensions/weather-fx">
+    Explore Weather FX, Rain FX, Extra FX, Grass FX, Particles FX, and Lighting FX modules.
+  </Card>
+  <Card title="Lua Scripting" icon="code" href="/lua/overview">
+    Write custom weather controllers and camera scripts using the CSP Lua API.
+  </Card>
+</CardGroup>
 
-<Card title="Quickstart" icon="rocket" href="/quickstart">
-  This card links to the quickstart page in your project.
-</Card>
-<Card title="Components" icon="puzzle-piece" href="https://mintlify.com/docs/components">
-  Add cards, callouts, steps, tabs, and more to design and structure your pages.
-</Card>
-<Card title="Settings" icon="gear" href="https://mintlify.com/docs/organize/settings">
-  Set your site name, branding, and navigation in the `docs.json` file.
-</Card>
+## How It Works
+
+CSP reads configuration from `assettocorsa/extension/` on startup and watches for live changes while the game is running. This repo is the canonical source for those configs — Content Manager pulls it automatically, or you can clone it and drop files directly into your AC installation.
+
+<Steps>
+  <Step title="Install Custom Shaders Patch">
+    Download CSP from [acstuff.club/patch](https://acstuff.club/patch/) and install it via Content Manager or manually by placing `dwrite.dll` next to `acs.exe`.
+  </Step>
+  <Step title="Get the extension configs">
+    Content Manager downloads configs automatically. For manual installs, clone this repository and copy its contents so that `extension/config/`, `extension/textures/`, and `extension/vao-patches/` land under your `assettocorsa/` root.
+  </Step>
+  <Step title="Edit configs live">
+    Most INI settings take effect immediately when you save the file — no restart required. Car and track configs can be edited while AC is running for rapid iteration.
+  </Step>
+  <Step title="Contribute your changes">
+    Open a pull request on GitHub to share your car lights, track configs, or Lua scripts with the community.
+  </Step>
+</Steps>
+
+## What's in the Repo
+
+<CardGroup cols={3}>
+  <Card title="Car Configs" icon="car-side" href="/cars/overview">
+    Lights, emissives, PBR materials, instruments, and more for Kunos and mod cars.
+  </Card>
+  <Card title="Track Configs" icon="flag-checkered" href="/tracks/overview">
+    Trackside light rigs, conditions, and material adjustments for hundreds of circuits.
+  </Card>
+  <Card title="Weather FX" icon="cloud-sun-rain" href="/extensions/weather-fx">
+    Fully dynamic 24-hour weather with scriptable Lua controllers.
+  </Card>
+  <Card title="Rain FX" icon="cloud-rain" href="/extensions/rain-fx">
+    Windscreen drops, puddles, wet road reflections, and rain tyres automation.
+  </Card>
+  <Card title="Lua Scripts" icon="scroll" href="/lua/overview">
+    Camera modes, fireworks, FFB post-processing, and a new-modes framework.
+  </Card>
+  <Card title="Contributing" icon="code-pull-request" href="/contributing/adding-car-configs">
+    Guidelines for adding or improving configs and getting them merged upstream.
+  </Card>
+</CardGroup>

@@ -1,0 +1,269 @@
+---
+title: "PBR and Custom Material Configuration for Cars"
+sidebarTitle: "Materials"
+description: "Apply PBR materials, car paint shaders, glass, and interior materials to Assetto Corsa cars using CSP INI templates and texture packing."
+---
+
+CSP's material system lets you override the shader and properties of any material or mesh in a car's KN5 file without recompiling or repackaging it. You reference materials by their original name (as set in the 3D authoring tool), then specify a new shader and its parameters. The common templates in `config/cars/common/` bundle the most frequently used combinations — PBR surfaces, car paint, glass, interior fabrics — into easy-to-include helpers.
+
+---
+
+## How Material Overrides Work
+
+The core mechanism is `[SHADER_REPLACEMENT_...]`. The `...` suffix means "auto-generate a unique name"; you can use any suffix you like, including numbered or descriptive ones. You identify the target by `MATERIALS` (material names) or `MESHES` (mesh node names), then set `SHADER` and one or more `PROP_...` entries:
+
+```ini
+[SHADER_REPLACEMENT_...]
+MATERIALS = EXT_Rim_Base
+PROP_... = fresnelEXP,         5
+PROP_... = fresnelMaxLevel,    1
+PROP_... = fresnelC,           0.8
+PROP_... = ksSpecular,         1
+PROP_... = ksSpecularEXP,      400
+PROP_... = extExtraSharpLocalReflections, -0.2
+DOUBLE_FACE_SHADOW_BIASED = 1
+```
+
+The template system (used by PBR, car paint, and glass) builds these replacements automatically from high-level parameters, saving hundreds of lines of boilerplate.
+
+---
+
+## PBR Materials — `[TEMPLATE: Material_PBR]`
+
+Include `common/materials_pbr.ini` and then declare one `[Material_PBR]` section per material group. The template generates a complete `[SHADER_REPLACEMENT_...]` block that targets the `fuPBR` shader (or `fuPBR_parallax` if a displacement texture is provided).
+
+```ini
+[INCLUDE: common/materials_pbr.ini]
+
+[Material_PBR]
+Materials         = EXT_Body_Metal
+TextureAlbedo     = body_albedo.dds
+TextureNormal     = body_normal.dds
+TextureEmAoMeRo   = 'color::0,0,0,0', body_ao.dds, body_metalness.dds, body_roughness.dds
+UVScale           = 1
+F0                = 0.04
+```
+
+<ParamField path="TextureAlbedo" type="filename">
+  Albedo (base colour) texture without baked ambient occlusion. The red, green, blue channels carry colour; alpha is unused by default.
+</ParamField>
+
+<ParamField path="TextureNormal" type="filename">
+  Normal map. Only red and green channels are sampled. DXT5NM encoding is supported — set `DXT5NMNormalMap = 1` if your normal maps use that format.
+</ParamField>
+
+<ParamField path="TextureEmAoMeRo" type="packed texture spec">
+  A single RGBA texture (or up to four source textures/colours) packing: **R** = emissive mask, **G** = ambient occlusion, **B** = metalness, **A** = roughness. See the texture packing section below.
+</ParamField>
+
+<ParamField path="UVScale" type="float">
+  Uniform UV tiling scale applied to all PBR textures. Useful when PBR textures tile at a different scale than the original diffuse.
+</ParamField>
+
+<ParamField path="F0" type="float">
+  Base Fresnel reflectivity at normal incidence for non-metals. `0.04` (≈ 4 %) is physically correct for most dielectrics. Metals typically derive F0 from the albedo colour instead.
+</ParamField>
+
+<ParamField path="SpecularWorkflow" type="0 or 1">
+  `0` (default) = metalness workflow. `1` = specular workflow, where `TextureSpecular` carries a specular colour map instead of `TextureEmAoMeRo`'s blue channel.
+</ParamField>
+
+<ParamField path="ApplyTilingFix" type="0 or 1">
+  Reduces visible tiling artefacts by blending a second UV-offset sample. Adds one extra texture read per pixel.
+</ParamField>
+
+<ParamField path="TextureDisplacement" type="filename">
+  Height map for parallax occlusion mapping. When set, the shader switches to `fuPBR_parallax`. Must be a square texture. Control depth with `ParallaxScale` (default `0.02`) and quality with `ParallaxSteps` (default `20`).
+</ParamField>
+
+### Texture Packing Shorthand
+
+Rather than manually merging RGBA channels in an image editor, CSP can combine up to four separate textures (or solid colours) at load time into a single packed texture:
+
+```ini
+; Use a solid black emissive channel, take the AO texture as-is,
+; explicitly read the green channel of metalness and roughness files.
+TextureEmAoMeRo = 'color::0,0,0,0', body_ao.dds, G@body_metalness.dds, G@body_roughness.dds
+```
+
+- `'color::r,g,b,a'` — solid colour placeholder for any channel
+- `X@texture.png` — read channel **X** (R, G, B, or A) from the named texture into the current target channel
+
+<Warning>
+  Combined textures are cached uncompressed in `assettocorsa/cache/made_textures/`. Delete this folder if you update source textures and do not see the changes. There is no automatic cache invalidation when the source filenames stay the same but the content changes.
+</Warning>
+
+---
+
+## Car Paint — `[TEMPLATE: Material_CarPaint]`
+
+Car paint uses the proprietary `smCarPaint` shader with clear coat, flakes, Fresnel, and optional effects. Include `common/materials_carpaint.ini` to gain access to all sub-templates.
+
+```ini
+[INCLUDE: common/materials_carpaint.ini]
+CarPaintMaterial    = EXT_Carpaint   ; material name in the KN5
+CarPaintVersionAware = 4             ; enables newer defaults (recommended)
+DisableDev          = 1
+```
+
+After the `[INCLUDE]` you can append a specific sub-template to override defaults:
+
+<Tabs>
+  <Tab title="Solid">
+    ```ini
+    [Material_CarPaint_Solid]
+    ; Uses default FresnelMax = 0.5, FresnelC = 0.08
+    ; Good for flat single-colour paints.
+    ```
+  </Tab>
+  <Tab title="Metallic">
+    ```ini
+    [Material_CarPaint_Metallic]
+    ; FresnelMax = 1, FresnelC = 0.1
+    ; Adds colored specular and ambient specular for sparkle.
+    ```
+  </Tab>
+  <Tab title="Pearl">
+    ```ini
+    [Material_CarPaint_Pearl]
+    ; PearlescentSpecular = 1.0, ClearCoatThickness = 0.09
+    ; The specular tint shifts away from the base colour.
+    ```
+  </Tab>
+  <Tab title="Matte">
+    ```ini
+    [Material_CarPaint_Matte]
+    ; Low SpecularBase exponent, no sun specular.
+    ; AmbientSpecular = 1.0 for a consistent sheen.
+    ```
+  </Tab>
+  <Tab title="Chameleon">
+    ```ini
+    [Material_CarPaint_Chameleon]
+    ChameleonColorA   = #33007f, 0.5
+    ChameleonColorB   = #ffff00, 1
+    ChameleonExponent = 1.2
+    ChameleonCenter   = 0.45
+    ```
+  </Tab>
+</Tabs>
+
+Key parameters shared across all car-paint sub-templates:
+
+<ParamField path="FresnelMax" type="float 0–1">
+  Maximum reflectivity at glancing angles (grazing incidence). `1` = fully mirror-like at 90°.
+</ParamField>
+
+<ParamField path="FresnelC" type="float 0–1">
+  Reflectivity at normal incidence (surface faces the camera directly). Physically around `0.04`–`0.16` for real paint.
+</ParamField>
+
+<ParamField path="ClearCoatThickness" type="float">
+  Thickness of the simulated clear-coat layer. Higher values increase the amount of tinting/absorption underneath the coat. `0.0` disables the clear-coat effect.
+</ParamField>
+
+<ParamField path="ColoredSpecular" type="float 0–1">
+  Fraction of the base paint colour blended into the specular highlight. Metallic paints benefit from values near `0.9`.
+</ParamField>
+
+<ParamField path="AmbientSpecular" type="float">
+  Additional specular term driven by ambient (sky) light. Adds sparkle to metallic and pearl paints.
+</ParamField>
+
+<ParamField path="ApplyTilingFix" type="0 or 1">
+  Reduces visible tiling in the `txDetail` (flake) texture.
+</ParamField>
+
+---
+
+## Glass — `[TEMPLATE: Material_Glass]`
+
+The `smGlass` shader correctly handles refraction, IOR-accurate Fresnel, and optional tint/mask passes for windscreen banners.
+
+```ini
+[INCLUDE: common/materials_glass.ini]
+
+[Material_Glass]
+Materials   = EXT_Glass
+FilmIOR     = 2.2
+MaskPass    = 1
+```
+
+<ParamField path="IOR" type="float">
+  Index of refraction for the glass body. Physical glass is `1.5`; higher values increase edge reflections. Fresnel coefficients are computed automatically from this value using Schlick's approximation.
+</ParamField>
+
+<ParamField path="FilmIOR" type="float">
+  IOR for a thin film on the glass exterior (e.g. a coating). Higher values add more colour-shifting at glancing angles. Set to the same value as `IOR` to disable the film effect.
+</ParamField>
+
+<ParamField path="ThicknessMult" type="float">
+  Controls how much the glass absorbs light passing through. `1` = standard, `3` = heavily tinted (useful for coloured rear lights).
+</ParamField>
+
+<ParamField path="MaskPass" type="float 0–1">
+  Enables an extra rendering pass that masks objects behind the glass by the given opacity. Required for windscreen tint bands and some interior displays.
+</ParamField>
+
+<ParamField path="Refraction" type="float">
+  Non-zero enables cheap screen-space refraction (light bending). The value controls the bending amount.
+</ParamField>
+
+The template file also declares convenience defaults for several named categories that can be set via `[INCLUDE]` parameters:
+
+```ini
+[INCLUDE: common/materials_glass.ini]
+ExteriorGlassMaterials       = Glass
+ExteriorGlassTintedMaterials = RearGlassTinted
+ExteriorGlassHeadlightsMaterials = Headlight_Glass
+```
+
+---
+
+## Interior Materials — `[TEMPLATE: Material_InteriorPBR]`
+
+Interior surfaces use the `nePBR_MultiMap*` family of shaders, configured through templates in `common/materials_interior.ini`. These templates expect Kunos-style texture layout (AO in `txDiffuse`, colour in `txDetail`) but can be adapted via `ColorSource` and `OcclusionSource`.
+
+```ini
+[INCLUDE: common/materials_interior.ini]
+
+[Material_Leather_v2]
+Materials = INT_Skin_base
+Brightness = 1
+DetailNormalPBRSecondaryColor = 1, 1, 1, 0.04
+DetailTextureBlur = 1
+
+[Material_Fabric_v2]
+Materials   = INT_Fabric_walls
+Brightness  = 0.8
+DetailTextureBlur = 1
+
+[Material_Carbon]
+Materials = INT_Carbon
+```
+
+Available pre-built interior templates include `Material_Plastic_v2`, `Material_Leather_v2`, `Material_LeatherSpotty_v2`, `Material_LeatherPoked_v2`, `Material_Fabric_v2`, `Material_Velvet_v2`, `Material_Carpet_v2`, `Material_Aluminium_v2`, `Material_Metal_v2`, and `Material_Carbon`.
+
+---
+
+## Transparency and Rendering Order — `[EXTRA_FX]`
+
+Two `[EXTRA_FX]` directives fix common transparency and deferred-rendering problems:
+
+```ini
+[EXTRA_FX]
+FORCE_OPAQUE   = GEO_Chassis_SUB7        ; treat this mesh as opaque in depth pre-pass
+SKIP_GBUFFER   = material:INT_Glass_Display  ; skip deferred G-buffer for this material
+```
+
+<ParamField path="FORCE_OPAQUE" type="mesh name(s)">
+  Forces the named mesh(es) into the opaque render queue even if their material has transparency flags set. Fixes depth-fighting with semi-transparent meshes that should read correctly in the depth buffer.
+</ParamField>
+
+<ParamField path="SKIP_GBUFFER" type="mesh or material name(s)">
+  Excludes the named mesh or material from the deferred G-buffer pass. Required for any interior screen or glass overlay that must blend over opaque geometry without producing lighting artefacts. Prefix with `material:` to target by material name.
+</ParamField>
+
+<Note>
+  You can supply multiple names as a comma-separated list, e.g. `FORCE_OPAQUE = MeshA, MeshB, MeshC`.
+</Note>

@@ -1,0 +1,179 @@
+---
+title: "Rain FX: Puddles, Windscreen Drops, and Wet Road Rendering"
+sidebarTitle: "Rain FX"
+description: "Enable and configure CSP Rain FX for wet road puddles, windscreen water drops, automatic rain tyre selection, and per-camera rain drop styles."
+---
+
+Rain FX extends Assetto Corsa's weather pipeline with a full wet-surface rendering system: procedurally grown puddles, per-vertex wetness maps on car bodywork, a physically driven windscreen water simulation, and a configurable on-screen raindrops overlay that respects each camera style separately. All of this is controlled through `rain_fx.ini`. This page documents every user-facing parameter and explains how the per-camera drop styles work.
+
+<Note>
+  Rain FX requires **Weather FX** to be active and a compatible weather implementation (such as Sol or Pure) that actually delivers precipitation data to the system.
+</Note>
+
+## Enabling Rain FX
+
+```ini
+[BASIC]
+ENABLED=1
+AUTOSELECT_RAIN_TYRES=1
+```
+
+<ParamField path="ENABLED" type="integer" default="1">
+  Master switch for the Rain FX module. Set to `0` to disable all wet-road rendering, windscreen drops, and rain-tyre automation. Weather FX will still report precipitation, but the visual layer will not be drawn.
+</ParamField>
+
+<ParamField path="AUTOSELECT_RAIN_TYRES" type="integer" default="1">
+  When set to `1`, CSP automatically equips the player's car with rain-compound tyres at session start if rain is forecast. The swap happens **only at the initial load** — mid-session changes are not applied automatically.
+</ParamField>
+
+---
+
+## Visual Tweaks
+
+```ini
+[VISUAL_TWEAKS]
+RAIN_MAPS_QUALITY=1
+DEBLUR_PAUSED_RAINDROPS=0
+HITS_INTENSITY=1
+```
+
+<ParamField path="RAIN_MAPS_QUALITY" type="integer" default="1">
+  Controls the resolution of the dynamic puddle and wetness maps painted onto road surfaces.
+
+  | Value | Quality |
+  |-------|---------|
+  | `0`   | High    |
+  | `1`   | Medium  |
+  | `2`   | Low     |
+
+  Lower quality saves VRAM and GPU bandwidth on large or complex tracks. Medium (`1`) is a good balance for most systems.
+</ParamField>
+
+<ParamField path="DEBLUR_PAUSED_RAINDROPS" type="integer" default="0">
+  Disables the motion-blur pass on windscreen rain drops when the simulation is paused. Useful for taking sharp screenshots while it is raining without disabling drops entirely.
+</ParamField>
+
+<ParamField path="HITS_INTENSITY" type="number" default="1">
+  Scales the visual intensity of the small burst animations that appear when individual rain drops strike a dry surface (not the splash rings in puddles). Valid range: **0.0 – 2.0**. Set to `0` to eliminate the hits entirely.
+</ParamField>
+
+---
+
+## Windscreen Drops
+
+The windscreen simulation models individual water drops that cling to and streak across the glass, driven by the car's acceleration and speed.
+
+```ini
+[WINDSCREEN_DROPS]
+GFORCE_MULT=1
+```
+
+<ParamField path="GFORCE_MULT" type="number" default="1">
+  Multiplier applied to the lateral and longitudinal G-forces used to move drops across the windscreen. Higher values make drops react more dramatically to braking and cornering. Valid range: **0.0 – 3.0**.
+</ParamField>
+
+---
+
+## Screen Drops
+
+The screen-drop overlay renders a layer of raindrops directly on the 2-D screen, separate from the 3-D windscreen geometry. Its appearance can be tailored per camera type.
+
+```ini
+[SCREEN_DROPS]
+ENABLED=1
+INTENSITY_MULT=1
+DISABLE_WITH_PHOTO_MODE=1
+DISABLE_FOR_SCREENSHOTS=0
+STYLE_COCKPIT=DISTANT
+STYLE_CHASE_CAMERA=CLOSE
+STYLE_CAR_CAMERAS=CLOSE
+STYLE_FREE_CAMERA=CLOSE
+STYLE_TRACK_CAMERA=NONE
+```
+
+<ParamField path="ENABLED" type="integer" default="1">
+  Enables or disables the full screen-drop overlay system. When set to `0`, no 2-D rain drops are drawn for any camera, regardless of individual style settings.
+</ParamField>
+
+<ParamField path="INTENSITY_MULT" type="number" default="1">
+  Global multiplier for the number and density of on-screen drops. Valid range: **0.0 – 2.0**. Values above `1.0` produce heavier-looking rain on screen than the weather system strictly dictates.
+</ParamField>
+
+<ParamField path="DISABLE_WITH_PHOTO_MODE" type="integer" default="1">
+  Automatically hides the screen-drop overlay whenever the Content Manager photo mode app is open, giving clean shots without manual toggling.
+</ParamField>
+
+<ParamField path="DISABLE_FOR_SCREENSHOTS" type="integer" default="0">
+  When set to `1`, suppresses screen drops during accumulative screenshot captures. Useful for clean renders that use motion blur without the drops frozen mid-frame.
+</ParamField>
+
+### Per-Camera Drop Styles
+
+Each camera category can independently use large drops, small drops, or none at all.
+
+<Tabs>
+  <Tab title="Style values">
+    | Value      | Effect                         |
+    |------------|--------------------------------|
+    | `CLOSE`    | Large, prominent drops         |
+    | `DISTANT`  | Small, subtle drops            |
+    | `NONE`     | Drops disabled for this camera |
+  </Tab>
+  <Tab title="Defaults">
+    | Parameter              | Default    | Camera type                              |
+    |------------------------|------------|------------------------------------------|
+    | `STYLE_COCKPIT`        | `DISTANT`  | First-person / cockpit view              |
+    | `STYLE_CHASE_CAMERA`   | `CLOSE`    | Chase/bumper cameras behind the car      |
+    | `STYLE_CAR_CAMERAS`    | `CLOSE`    | F6 cameras, bumper cam, etc.             |
+    | `STYLE_FREE_CAMERA`    | `CLOSE`    | Free-roam / photo mode camera            |
+    | `STYLE_TRACK_CAMERA`   | `NONE`     | Fixed circuit TV cameras                 |
+  </Tab>
+</Tabs>
+
+<ParamField path="STYLE_COCKPIT" type="string" default="DISTANT">
+  Drop style when in first-person cockpit view. Defaults to `DISTANT` (small drops) because large drops on the cockpit camera can obscure the racing line.
+</ParamField>
+
+<ParamField path="STYLE_CHASE_CAMERA" type="string" default="CLOSE">
+  Drop style for chase cameras that follow the car from behind.
+</ParamField>
+
+<ParamField path="STYLE_CAR_CAMERAS" type="string" default="CLOSE">
+  Drop style for car-mounted cameras such as the F6 camera or front-bumper camera.
+</ParamField>
+
+<ParamField path="STYLE_FREE_CAMERA" type="string" default="CLOSE">
+  Drop style for the free-roam camera. Note that drops disappear automatically when the photo mode app overlay is visible (see `DISABLE_WITH_PHOTO_MODE`).
+</ParamField>
+
+<ParamField path="STYLE_TRACK_CAMERA" type="string" default="NONE">
+  Drop style for fixed circuit TV cameras. Defaults to `NONE` because TV-style broadcasts do not typically show rain drops on the lens.
+</ParamField>
+
+---
+
+## Racing Line (Developer Section)
+
+<Accordion title="RACING_LINE_DEV — Experimental, developers only">
+
+The `[RACING_LINE_DEV]` section is a work-in-progress feature for finding optimal values for the way the racing line dries out faster than the surrounding tarmac. It is **disabled by default** and is not intended for end-user tuning.
+
+```ini
+[RACING_LINE_DEV]
+ENABLED=0
+FADING_PERIOD=600
+SPEED_THRESHOLD=10, 90
+BODY_RADIUS=0.6, 1.2
+BODY_MULT=0.01
+WHEELS_MULT=0.03
+SPLASH_MULT=0.03
+```
+
+Key parameters when experimenting:
+
+- **`FADING_PERIOD`** – Seconds for the racing line to fade from 100 % dryness offset back to fully wet. Heavy rain shortens this time automatically. Range: 60 – 600 s.
+- **`SPEED_THRESHOLD`** – Two km/h values: cars begin affecting the line at the first value and apply full effect at the second.
+- **`BODY_RADIUS`** – Inner and outer radii (metres) of the drying effect from the car body.
+- **`BODY_MULT` / `WHEELS_MULT` / `SPLASH_MULT`** – Individual multipliers for the drying contributions from the body, wheels, and spray splash respectively.
+
+</Accordion>

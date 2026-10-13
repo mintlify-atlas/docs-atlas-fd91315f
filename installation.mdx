@@ -1,0 +1,104 @@
+---
+title: "Install CSP Extension Config in Assetto Corsa"
+sidebarTitle: "Installation"
+description: "Install Custom Shaders Patch extension configs via Content Manager auto-download or by manually cloning the repository into your AC install."
+---
+
+Before any of the visual enhancements in this repository take effect, two things must be present on your machine: the Custom Shaders Patch DLL itself, and the config files from this repository. For most players, Content Manager handles both automatically. If you prefer a manual approach — or you are setting up a server environment or a modding workflow — you can clone or download the repository directly and place it in the right folder. Both paths are documented below.
+
+<Tabs>
+  <Tab title="Content Manager (Recommended)">
+
+[AC Content Manager](https://acstuff.club/app/) is the standard launcher for Assetto Corsa and handles CSP installation end-to-end, including keeping configs up to date automatically.
+
+<Steps>
+  <Step title="Open Content Manager and navigate to CSP settings">
+    Launch Content Manager and go to **Settings** → **Custom Shaders Patch**.
+
+    If CSP is not yet installed, Content Manager will offer to download and install the latest build for you. Click **Install** and wait for the process to complete.
+  </Step>
+  <Step title="Verify configs are enabled">
+    On the same **Custom Shaders Patch** settings page, confirm that the option to automatically download configs is enabled (it is on by default). Content Manager will fetch the latest distribution package from the CSP content server and place it in your `extension/` folder.
+  </Step>
+  <Step title="Launch a session">
+    Start any race or practice session. Content Manager checks for updated car and track configs at launch time and downloads them in the background. No manual steps are required after initial setup.
+  </Step>
+</Steps>
+
+<Note>
+  The CSP content server pulls from this repository on a five-minute interval. Config updates you commit to the repo will reach end users within minutes of the next server sync — no release process or manual packaging needed.
+</Note>
+
+  </Tab>
+  <Tab title="Manual Install">
+
+If you are not using Content Manager — for example, on a dedicated server or for local development — you can install the configs by downloading or cloning this repository and placing its contents in the correct folder inside your Assetto Corsa installation.
+
+<Steps>
+  <Step title="Install Custom Shaders Patch itself">
+    Download the latest CSP build from the official page:
+
+    **[https://acstuff.club/patch/](https://acstuff.club/patch/)**
+
+    Extract the archive so that `dwrite.dll` ends up next to `acs.exe` in your Assetto Corsa root folder. Alternatively, use [JSGME](https://www.racedepartment.com/downloads/jsgme-mod-enabler.13803/) to enable the `MODS/Shaders Lights Patch` folder as a mod.
+  </Step>
+  <Step title="Download the config repository">
+    Click the green **Code** button on the GitHub repository page and select **Download ZIP**, or clone the repository:
+
+    ```bash
+    git clone https://github.com/ac-custom-shaders-patch/acc-extension-config.git
+    ```
+  </Step>
+  <Step title="Extract to the extension folder">
+    Extract or copy the contents so that the `tzdata` folder (the version marker) ends up directly inside `assettocorsa/extension/`. The resulting folder structure should look like this:
+
+    ```
+    C:\...\assettocorsa\extension\
+    \---extension
+        +---config
+        |   +---cars
+        |   |   +---common
+        |   |   +---kunos
+        |   |   \---mods
+        |   \---tracks
+        |       \---common
+        \---vao-patches
+    ```
+
+    Steam users will typically find their Assetto Corsa root at one of these paths:
+
+    ```
+    C:\Program Files\Steam\steamapps\common\assettocorsa\
+    X:\Steam\steamapps\common\assettocorsa\
+    ```
+  </Step>
+  <Step title="Verify the install">
+    Launch Assetto Corsa, load any car and track, and check that dynamic lighting (night-time track lights on supported venues) and PBR material updates are visible. If you see only the base AC visuals, double-check that `dwrite.dll` is in the AC root and that the `extension/config` folder is populated.
+  </Step>
+</Steps>
+
+  </Tab>
+</Tabs>
+
+## User Overrides
+
+Any setting in the shipped configs can be overridden on a per-user basis without modifying the repository files. User-specific config files are stored here:
+
+```
+%userprofile%\Documents\Assetto Corsa\cfg\extension\
+```
+
+CSP merges files in the user folder on top of the defaults in `assettocorsa/extension/`. This means you can create a local copy of any config file under the user path and your values will take precedence, surviving future config updates.
+
+<Note>
+  Some track configs require additional `.kn5` mesh files alongside the INI. These files ship in the same `config/tracks/` directory as their corresponding config and must be present for the track lighting to work. For example, `config/tracks/ks_nurburgring.ini` requires these files in the same folder:
+
+  ```
+  nurbAllGlass.kn5
+  nurbSpots.kn5
+  nurbSpotsPad.kn5
+  nurbpitglass2.kn5
+  ```
+
+  When doing a manual install, always copy the entire contents of `config/tracks/` rather than cherry-picking individual INI files, to avoid missing `.kn5` dependencies.
+</Note>

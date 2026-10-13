@@ -1,0 +1,410 @@
+---
+title: "Track Conditions: Time, Weather, and Flag-Based Light Triggers"
+sidebarTitle: "Conditions"
+description: "Define time-of-day, weather, and flag-based conditions for track lights and material adjustments using the CSP CONDITION_X section."
+---
+
+Conditions are named 0–1 values that CSP evaluates every frame. They act as gates for `LIGHT_X`, `LIGHT_SERIES_X`, and `MATERIAL_ADJUSTMENT_X` blocks — when a condition value is `1` the associated lights or material properties are fully active; when `0` they are off. Conditions live in `[CONDITION_X]` sections (numbered 0–74 for track-specific conditions; 75–99 are reserved for the shared `common/conditions.ini` file) and are referenced by their `NAME` field in other sections.
+
+The standard approach is to pull in `common/conditions.ini` via an `[INCLUDE]` section, which provides a library of ready-to-use named conditions like `NIGHT_SMOOTH`, `ALWAYS_ON`, `HAZARDS`, and the seasonal conditions. You can then add your own numbered conditions (0–74) in the track's own INI file or in a separate include.
+
+```ini
+[INCLUDE]
+INCLUDE = common/conditions.ini
+```
+
+<Note>
+  Condition numbers 75–99 are used by `common/conditions.ini`. If you add your
+  own conditions, number them **0–74** so they will never collide with the
+  shared file — and if you share your config, consider putting custom conditions
+  in a separate include file so they survive an upstream update.
+</Note>
+
+---
+
+## INPUT Types
+
+The `INPUT` parameter determines what real-world value drives the condition before the optional LUT mapping is applied.
+
+<Accordion title="ONE — Always 1.0 (constant)">
+  `INPUT = ONE` sets the raw input to a constant value of `1.0`. Combined with
+  `FLASHING_*` parameters it creates timers, flicker effects, and colour-cycle
+  animations that run regardless of time of day.
+
+  ```ini
+  [CONDITION_84]
+  NAME  = ALWAYS_ON
+  INPUT = ONE
+  ```
+</Accordion>
+
+<Accordion title="NONE — Always 0.0 (constant off)">
+  `INPUT = NONE` forces the condition to always be `0`, effectively disabling
+  any lights that reference it without deleting the config blocks.
+</Accordion>
+
+<Accordion title="TIME — Clock time in seconds (0–86400)">
+  `INPUT = TIME` provides the current in-game clock time in seconds from
+  midnight (0 = 00:00, 43200 = 12:00, 86400 = 24:00). Use a LUT to map
+  specific time ranges to a 0–1 output.
+
+  ```ini
+  [CONDITION_0]
+  NAME  = EVENING_LIGHTS
+  INPUT = TIME
+  LUT   = (|0=1|25200=1|25200=0|63000=0|63000=1|86400=1|)
+  ; lights on from midnight to 07:00 and again from 17:30 to midnight
+  ```
+</Accordion>
+
+<Accordion title="SUN — Sun elevation angle in degrees (0–180)">
+  `INPUT = SUN` provides the sun's elevation angle. At solar noon the sun is at
+  `0°` and the value climbs towards `90°` at the horizon, passing through
+  `88–92°` during dusk/dawn, and reaching `180°` at solar midnight. This is the
+  most common input for day/night transitions — the built-in `NIGHT_SMOOTH`
+  condition uses it.
+
+  ```ini
+  [CONDITION_80]
+  NAME  = NIGHT_SMOOTH
+  INPUT = SUN
+  LUT   = (|0=0|88=0|88=1|180=1|)
+  LAG   = 0.97
+  ; activates (→1) when sun reaches 88° (horizon), with smooth lag
+  ```
+</Accordion>
+
+<Accordion title="AMBIENT — Ambient brightness (0–1)">
+  `INPUT = AMBIENT` provides the current ambient light level as a normalised
+  0–1 value. Useful for activating lights based on overall scene brightness
+  rather than purely sun angle — this responds to overcast conditions too.
+</Accordion>
+
+<Accordion title="FOG — Fog density (0–1)">
+  `INPUT = FOG` provides the current volumetric fog density. Use it to
+  activate hazard lights or warning beacons during foggy conditions.
+</Accordion>
+
+<Accordion title="RACING_FLAG (FLAG_TYPE) — Current race flag (integer)">
+  `INPUT = FLAG_TYPE` (also referred to as `RACING_FLAG` by convention) provides
+  the integer code of the flag currently being displayed. Pair it with an inline
+  LUT to map each flag code to an RGB colour value, allowing traffic lights or
+  marshal boards to display the correct flag colour.
+
+  Flag codes:
+  | Code | Flag |
+  |------|------|
+  | 1 | Green |
+  | 2 | Yellow (single) |
+  | 3 | Double yellow |
+  | 4 | Orange |
+  | 5 | Red |
+  | 6 | White |
+  | 7 | Pink |
+  | 8 | Black & White |
+  | 9 | Blue |
+  | 12 | Blue (alternate) |
+  | 14 | Chequered |
+
+  ```ini
+  [CONDITION_0]
+  NAME  = RACING_FLAG
+  INPUT = FLAG_TYPE
+  LUT   = (|1=0,1,0|2=1,1,0|3=1,0.5,0|5=1,0,0|6=0.7,0.7,0.7|9=0,0,1|14=1,1,1|)
+  INPUT_STAY_FOR     = 1.0   ; keep flag visible for 1 second after change
+  INPUT_CHANGE_DELAY = 0.5   ; wait 0.5 s before reacting to a new flag
+  ```
+</Accordion>
+
+<Accordion title="YEAR_PROGRESS — Season (0–1 over the year)">
+  `INPUT = YEAR_PROGRESS` provides the current in-game date as a fraction of
+  the year (0 = 1 January, 0.5 = early July, 1 = 31 December). Use it for
+  seasonal effects such as snow overlays, autumn foliage, or dried-grass
+  material adjustments.
+
+  ```ini
+  [CONDITION_75]
+  NAME  = SEASON_SUMMER_NORTH
+  INPUT = YEAR_PROGRESS
+  LUT   = (|-1=0|0=0|0.45=0|0.6=0.85|0.7=0|1=0|)
+  LAG   = 0
+  ```
+</Accordion>
+
+---
+
+## LUT Mapping
+
+Most `INPUT` types produce a raw numeric value. A `LUT` (look-up table) remaps that value to the 0–1 condition output (or to a colour vector for flag conditions). You can specify the LUT as either an inline string or an external `.lut` file.
+
+```ini
+; Inline LUT: pipe-separated key=value pairs enclosed in (|...|)
+LUT = (|0=0|88=0|88=1|180=1|)
+
+; External LUT file (relative to the track config folder)
+LUT = flag_colors.lut
+```
+
+LUT values are linearly interpolated between keys. For flag conditions the values can be colour triplets (`r,g,b`).
+
+---
+
+## Flashing Parameters
+
+Any condition can be made to flash, flicker, or cycle by adding the `FLASHING_*` parameters. These are layered on top of the base condition value — so a `FLASHING_FREQUENCY` on a `SUN`-based condition will only flash while the sun-based gate is active.
+
+<ParamField path="FLASHING_FREQUENCY" type="float" default="0">
+  Oscillation frequency in Hz. A negative value creates alternate-phase
+  blinking (useful for paired indicators that flash at opposite phases).
+</ParamField>
+
+<ParamField path="FLASHING_LUT" type="string">
+  Shape of the oscillation over one cycle, as an inline LUT or a file
+  reference. The position in the cycle (0–1) is mapped through this LUT to
+  the output brightness (0–1). Omit for a simple sine wave.
+</ParamField>
+
+<ParamField path="FLASHING_MIN_VALUE" type="float 0–1" default="0.0">
+  Minimum output value during the off-phase of the flash cycle. A value of
+  `0.5` produces a pulsing effect rather than a full on/off flash.
+</ParamField>
+
+<ParamField path="FLASHING_SMOOTHNESS" type="float or LINEAR" default="0.0">
+  Easing applied to each flash transition. `0` = square wave (instant
+  switch); `LINEAR` = linear ramp; a float value (e.g. `0.3`) = sinusoidal
+  smoothing. `1.0` approaches a pure sine.
+</ParamField>
+
+<ParamField path="FLASHING_SYNCED" type="0 or 1" default="0">
+  When `1`, all instances sharing this condition flash in perfect sync.
+  When `0`, instances have randomised phase offsets creating a sparkling
+  or asynchronous effect.
+</ParamField>
+
+<ParamField path="FLASHING_SKIP_OFF_STATE" type="0 or 1" default="0">
+  When `1`, the condition skips the "off" (0) portion of the cycle and only
+  dwells at "on" values. Useful for a smooth colour-cycling effect where you
+  never want the output to go dark.
+</ParamField>
+
+<ParamField path="FLASHING_SKIP_DOWNHILL_STATE" type="0 or 1" default="0">
+  When `1`, skips the decreasing portion of each flash, creating very fast
+  rise and very slow decay — or vice versa depending on the LUT shape.
+</ParamField>
+
+<ParamField path="FLASHING_NOISE_AMPLITUDE" type="float" default="0.0">
+  Adds Perlin-noise variation to the output. `0` = no noise; `1` = full
+  noise range. Essential for realistic flame flicker and lamp buzz effects.
+</ParamField>
+
+<ParamField path="FLASHING_NOISE_BOUND" type="float" default="10.0">
+  Spatial bound for the noise field — higher values spread the noise over
+  more instances.
+</ParamField>
+
+<ParamField path="FLASHING_NOISE_SPEED" type="float" default="500.0">
+  Speed of the noise animation. `500` is a moderate shimmer; reduce for
+  slow breathing, increase for rapid electrical flicker.
+</ParamField>
+
+---
+
+## Lag and Delay Parameters
+
+These parameters model the warm-up or cool-down behaviour of real lamp types.
+
+<ParamField path="LAG" type="float 0–1" default="0">
+  Exponential smoothing applied to the condition output. `0` = instant
+  response; `0.97` = very slow transition (used by `NIGHT_SMOOTH` to mimic
+  the gradual transition from dusk to full darkness). Think of it as a
+  low-pass filter on the output value.
+</ParamField>
+
+<ParamField path="LAG_DELAY_ON" type="float (seconds)">
+  Overrides `LAG` for the "turning on" direction only. Specifies the total
+  time in seconds to ramp from 0 → 1. If missing, `LAG` is used instead.
+</ParamField>
+
+<ParamField path="LAG_DELAY_OFF" type="float (seconds)">
+  Overrides `LAG` for the "turning off" direction only. `0` means the light
+  snaps off immediately while taking a long time to warm up.
+</ParamField>
+
+<ParamField path="LAG_DELAY_FUNC" type="LINEAR | SQR | SQRT | POW3" default="LINEAR">
+  Easing function applied during the `LAG_DELAY_ON` / `LAG_DELAY_OFF` ramp:
+  `LINEAR` = constant rate; `SQR` = accelerating; `SQRT` = decelerating
+  (slow start, fast end); `POW3` = cubic.
+</ParamField>
+
+<ParamField path="SIMULATE_HEATING" type="float 0–1" default="0">
+  Simulates a lamp that emits differently coloured light while heating up
+  versus when fully warm. A value of `0.7` gives a visible warm-up tint
+  shift. Pair with `LAG_DELAY_ON` for the most realistic effect.
+</ParamField>
+
+---
+
+## Change-Delay Parameters
+
+These help avoid lights snapping on and off when the input is noisy or rapidly changing.
+
+<ParamField path="INPUT_CHANGE_DELAY" type="float (seconds)" default="0">
+  The input value must hold a new state for this many seconds before the
+  condition changes. Prevents flag-light flicker when the flag code bounces.
+</ParamField>
+
+<ParamField path="INPUT_STAY_FOR" type="float (seconds)" default="0">
+  Once the condition activates, it stays active for at least this many
+  seconds even if the input reverts.
+</ParamField>
+
+---
+
+## Built-In Named Conditions
+
+The `common/conditions.ini` file defines a standard library of conditions that are available to every track config that includes it. Reference these by `NAME` in any `CONDITION` parameter.
+
+| Name | Description |
+|---|---|
+| `NIGHT_SMOOTH` | Active at sun angle ≥ 88°, with `LAG = 0.97` for a gradual on/off. |
+| `NIGHT_SHARP` | Same trigger as `NIGHT_SMOOTH` but with `LAG = 0` (instant). |
+| `NIGHT_SMOOTH_HEATING` | Same as `NIGHT_SMOOTH` plus `SIMULATE_HEATING = 0.7`. |
+| `NIGHT_SLOW_HEATING` | Turns on over 30 minutes (`LAG_DELAY_ON = 1800`). Good for HID floodlights. |
+| `ALWAYS_ON` | Constant `INPUT = ONE` — lights always active. |
+| `ALL_DAYS` | Active at reduced power during the day, full power at night. |
+| `SHARP_SUN_A` / `SMOOTH_SUN_A` | Activate slightly before `NIGHT_SMOOTH` (at 85°). Good for indoor lights. |
+| `RACING_FLAG` | Maps current race flag integer to an RGB colour output. |
+| `HAZARDS` | Fast 4 Hz double-flash, synced. |
+| `FLAME_FLICKERING` | Irregular 5 Hz flicker with noise — realistic flame effect. |
+| `COLORFULNESS` | Colour-cycling condition for disco/RGB lighting effects. |
+| `SEASON_SUMMER_NORTH` | Active in Northern-hemisphere summer (YEAR_PROGRESS ~ 0.45–0.7). |
+| `SEASON_WINTER_NORTH` | Active in Northern-hemisphere winter. |
+| `SEASON_AUTUMN_NORTH` | Active in Northern-hemisphere autumn. |
+| `SEASON_MUD_NORTH` | Active in spring mud season. |
+
+---
+
+## `[DISTANT_GLOW]` — Global Glow Thresholds
+
+The `[DISTANT_GLOW]` section sets global brightness thresholds that control when emissive materials contribute to the distant-glow rendering pass.
+
+<ParamField path="THRESHOLD" type="float" default="5">
+  Minimum emissive brightness value above which an object contributes to its
+  own distant glow.
+</ParamField>
+
+<ParamField path="SHARED_THRESHOLD" type="float" default="25">
+  Brightness threshold for the shared/combined distant glow pass.
+</ParamField>
+
+<ParamField path="IGNORE_SHARED_THRESHOLD" type="0 or 1" default="0">
+  Set to `1` to make all emissive objects contribute to the shared glow
+  regardless of their brightness.
+</ParamField>
+
+```ini
+[DISTANT_GLOW]
+THRESHOLD              = 5
+SHARED_THRESHOLD       = 25
+IGNORE_SHARED_THRESHOLD = 0
+```
+
+---
+
+## Examples
+
+### Day/Night Transition Using SUN Input
+
+```ini
+[INCLUDE]
+INCLUDE = common/conditions.ini
+
+; NIGHT_SMOOTH from common/conditions.ini is now available — no need to redefine it.
+; Just use it directly in any LIGHT_SERIES_X or MATERIAL_ADJUSTMENT_X:
+
+[LIGHT_SERIES_0]
+MESHES    = pitlane_light_?
+COLOR     = 1, 0.85, 0.65, 8
+COLOR_OFF = 0
+DIRECTION = 0, -1, 0
+SPOT      = 120
+RANGE     = 20
+FADE_AT   = 300
+CONDITION = NIGHT_SMOOTH
+ACTIVE    = 1
+```
+
+### Alternate Flashing Indicators (Phase-Shifted)
+
+```ini
+; Condition 1 — even phase
+[CONDITION_1]
+NAME                    = BLINK1
+INPUT                   = ONE
+FLASHING_FREQUENCY      = 2
+FLASHING_SMOOTHNESS     = 0
+FLASHING_SKIP_OFF_STATE = 0
+FLASHING_NOISE_AMPLITUDE = 0
+FLASHING_MIN_VALUE      = 0.0
+FLASHING_SYNCED         = 1
+
+; Condition 2 — negative frequency gives the opposite phase
+[CONDITION_2]
+NAME                    = BLINK2
+INPUT                   = ONE
+FLASHING_FREQUENCY      = -2
+FLASHING_SMOOTHNESS     = 0
+FLASHING_SKIP_OFF_STATE = 0
+FLASHING_NOISE_AMPLITUDE = 0
+FLASHING_MIN_VALUE      = 0.0
+FLASHING_SYNCED         = 1
+
+[MATERIAL_ADJUSTMENT_2]
+MESHES      = flagger_lights, flagger_lights01
+CONDITION   = BLINK1
+KEY_0       = ksEmissive
+VALUE_0     = 255, 209, 178, 0.25
+VALUE_0_OFF = 0, 0, 0
+ACTIVE      = 1
+
+[MATERIAL_ADJUSTMENT_3]
+MESHES      = flagger_lights?_001
+CONDITION   = BLINK2
+KEY_0       = ksEmissive
+VALUE_0     = 255, 209, 178, 0.25
+VALUE_0_OFF = 0, 0, 0
+ACTIVE      = 1
+```
+
+### Racing-Flag Colour Display with Inline LUT
+
+```ini
+[CONDITION_0]
+NAME  = RACING_FLAG
+INPUT = FLAG_TYPE
+LUT   = (|1=0,1,0|2=1,1,0|3=1,0.5,0|4=1,0.3,0|5=1,0,0|6=0.7,0.7,0.7|9=0,0,1|14=1,1,1|)
+INPUT_STAY_FOR     = 1.0
+INPUT_CHANGE_DELAY = 0.5
+
+[MATERIAL_ADJUSTMENT_0]
+MATERIALS   = lg_marshal_light_b_screen
+CONDITION   = RACING_FLAG
+KEY_0       = ksEmissive
+VALUE_0     = 255, 255, 255, 2.0
+VALUE_0_OFF = 0
+ACTIVE      = 1
+```
+
+### Floodlight with Slow Warm-Up (HID Simulation)
+
+```ini
+[CONDITION_1]
+; Turns on fully over 10 minutes, snaps off instantly
+NAME             = FLOODLIGHT_SLOW
+INPUT            = SUN
+LUT              = (|0=0|86=0|89=1|180=1|)
+LAG              = 0.9999
+LAG_DELAY_ON     = 600
+LAG_DELAY_OFF    = 3
+LAG_DELAY_FUNC   = LINEAR
+```

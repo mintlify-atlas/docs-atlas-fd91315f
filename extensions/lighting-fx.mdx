@@ -1,0 +1,280 @@
+---
+title: "Lighting FX: Dynamic Car and Track Light Rendering"
+sidebarTitle: "Lighting FX"
+description: "Configure CSP Lighting FX for dynamic headlights, brake lights, bounced interior light, ambient color, and per-car light budgets in Assetto Corsa."
+---
+
+Lighting FX is the heart of CSP's visual pipeline. It adds fully dynamic headlights with realistic beam cones, brake lights that cast red spill on surrounding geometry, bounced interior illumination, dynamic ambient colour that shifts throughout the day, and configurable track lighting — all rendered in real time. Beyond the lights themselves, this page also covers the key settings in `graphics_adjustments.ini`, including AMD FidelityFX Super Resolution (FSR), render-scale control, LOD distance multipliers, and post-processing antialiasing options. Both files work together and should be treated as a pair.
+
+<Warning>
+  Disabling Lighting FX (`ENABLED=0`) will break most other CSP modules. Graphics Adjustments, Weather FX, and many shader replacements all depend on infrastructure that Lighting FX sets up at startup. Only disable it as a last resort for troubleshooting.
+</Warning>
+
+---
+
+## Enabling Lighting FX
+
+```ini
+[BASIC]
+ENABLED=1
+BRIGHTNESS_MULT=1
+```
+
+<ParamField path="ENABLED" type="integer" default="1">
+  Master switch. When set to `0`, no dynamic car or track lights are rendered and most dependent CSP features will malfunction or fall back to safe-mode behaviour.
+</ParamField>
+
+<ParamField path="BRIGHTNESS_MULT" type="number" default="1">
+  Global multiplier for all dynamic light brightness output. Range: **0.0 – 2.0**. Use this to compensate for a PP filter that is unusually bright or dark — if headlights look blown-out under your filter, lower this value slightly.
+</ParamField>
+
+---
+
+## Performance
+
+```ini
+[PERFORMANCE]
+CARS_WITH_LIGHTS=10
+DISABLE_MIRRORING=0
+DISABLE_MIRRORING_FIRSTPERSON=0
+ENABLE_TREES_LIGHTING=1
+ENABLE_REARVIEWMIRROR_LIGHT=1
+ENABLE_REFLECTION_LIGHT=1
+```
+
+<ParamField path="CARS_WITH_LIGHTS" type="integer" default="10">
+  Maximum number of cars whose lights are computed as dynamic light sources each frame. Valid range: **0 – 50**. This is the single most impactful Lighting FX performance parameter in large-grid races. Headlights are expensive; in a 20-car field at night, reducing from 20 to 10 can save several milliseconds per frame.
+
+  | Value | Effect                                                         |
+  |-------|----------------------------------------------------------------|
+  | `0`   | No car casts dynamic light (your own car included)            |
+  | `5`   | Only the 5 closest cars cast light                            |
+  | `10`  | Default — good balance for most race grids                    |
+  | `50`  | All cars in a full grid cast light — very expensive at night  |
+</ParamField>
+
+<ParamField path="DISABLE_MIRRORING" type="integer" default="0">
+  Collapses headlights and brake lights from both sides of a car into a single central light source for all cars by default. Reduces draw calls but makes paired headlight separation less accurate.
+</ParamField>
+
+<ParamField path="DISABLE_MIRRORING_FIRSTPERSON" type="integer" default="0">
+  Merges left and right headlights into one while driving in first-person view only. A reasonable compromise that saves GPU cost where separation is least noticeable.
+</ParamField>
+
+<ParamField path="ENABLE_TREES_LIGHTING" type="integer" default="1">
+  Allows dynamic car and track lights to illuminate tree geometry. Disabling saves draw calls on tree-lined circuits.
+</ParamField>
+
+<ParamField path="ENABLE_REARVIEWMIRROR_LIGHT" type="integer" default="1">
+  Controls dynamic light quality in the rear-view mirror.
+
+  | Value | Mode                                         |
+  |-------|----------------------------------------------|
+  | `0`   | No dynamic lights in mirror                  |
+  | `1`   | Dynamic lights in mirror                     |
+  | `2`   | Dynamic lights + sun shadows (very expensive)|
+</ParamField>
+
+<ParamField path="ENABLE_REFLECTION_LIGHT" type="integer" default="1">
+  Enables dynamic lighting in environment reflection cubemaps. Expensive; disable on performance-constrained setups.
+</ParamField>
+
+---
+
+## Dynamic Shadows
+
+```ini
+[SHADOWS]
+ENABLED=0
+FULL_RESOLUTION=1
+CARS_SHADOWS=2
+SPECTATING_CARS_SHADOWS=3
+HIGH_QUALITY_HEADLIGHT_SHADOWS=0
+DETAILED_SHADOWS_FROM_CARS_NEARBY=1
+```
+
+<ParamField path="SHADOWS/ENABLED" type="integer" default="0">
+  Enables dynamic shadows cast by car lights (headlights, track lights). Off by default due to the significant GPU cost.
+</ParamField>
+
+<ParamField path="SHADOWS/FULL_RESOLUTION" type="integer" default="1">
+  Renders shadow maps at full resolution for maximum shadow sharpness.
+</ParamField>
+
+<ParamField path="SHADOWS/CARS_SHADOWS" type="integer" default="2">
+  Number of cars that cast shadows from dynamic lights during normal driving. Range: **0 – 5**. Note that setting this to `0` also prevents your own car from casting shadows.
+</ParamField>
+
+<ParamField path="SHADOWS/SPECTATING_CARS_SHADOWS" type="integer" default="3">
+  Number of cars casting shadows during replays or when using free/track cameras. Range: **0 – 5**.
+</ParamField>
+
+<ParamField path="SHADOWS/HIGH_QUALITY_HEADLIGHT_SHADOWS" type="integer" default="0">
+  Enables high-resolution headlight shadow maps. Marked as **very expensive** in the source; only enable on high-end systems.
+</ParamField>
+
+<ParamField path="SHADOWS/DETAILED_SHADOWS_FROM_CARS_NEARBY" type="integer" default="1">
+  Number of nearby cars that use high-detail shadow casting instead of a single low-detail call using the collider mesh. Range: **0 – 4**.
+</ParamField>
+
+---
+
+## Graphics Adjustments
+
+`graphics_adjustments.ini` underpins all of CSP's rendering and must remain enabled. Its key user-facing sections are documented below.
+
+<Note>
+  Disabling **Graphics Adjustments** (`[BASIC] ENABLED=0`) breaks most of CSP. A large number of modules depend on setup work that this extension performs at game start. The hint in the source file reads: *"Disabling Graphics Adjustments might break most of CSP: a lot of other modules rely on some things set up by this one."*
+</Note>
+
+### Force FXAA Route
+
+```ini
+[BASIC]
+FORCE_FXAA=1
+```
+
+<ParamField path="FORCE_FXAA" type="integer" default="1">
+  Enables the FXAA route in Assetto Corsa's video settings without actually applying FXAA, ensuring that CSP features which intercept the FXAA pipeline (TAA, SMAA, FSR, etc.) receive the correct render target. Leave this on unless you have a specific reason to disable it.
+</ParamField>
+
+---
+
+### AMD FidelityFX Super Resolution (FSR)
+
+FSR upscales a lower-resolution internal render to the display resolution, recovering significant frame rate while maintaining good image quality. It requires post-processing and FXAA enabled in AC's video settings, or VR mode.
+
+```ini
+[FSR]
+ACTIVE=0
+DISABLE_FOR_SCREENSHOTS=1
+OLD_IMPLEMENTATION=0
+QUALITY2=0.77
+SHARPEN2=0.5
+ADJUST_MIP_BIAS=0.5
+```
+
+<ParamField path="FSR/ACTIVE" type="integer" default="0">
+  Activates AMD FidelityFX Super Resolution. A **restart of Assetto Corsa** is required to activate, deactivate, or change the quality preset. Other settings (sharpness, MIP bias) can be changed live.
+</ParamField>
+
+<ParamField path="FSR/DISABLE_FOR_SCREENSHOTS" type="integer" default="1">
+  Disables FSR upscaling during screenshot captures so that accumulative screenshots are rendered at full native resolution.
+</ParamField>
+
+<ParamField path="FSR/OLD_IMPLEMENTATION" type="integer" default="0">
+  Selects between the legacy GTA-V-derived FSR implementation (`1`) and the official AMD SDK implementation (`0`). The official SDK is recommended; the legacy version is retained for compatibility.
+</ParamField>
+
+<ParamField path="FSR/QUALITY2" type="number" default="0.77">
+  Internal render resolution as a fraction of the output resolution, for the new (official SDK) implementation.
+
+  | Value  | Preset         | Internal resolution |
+  |--------|----------------|---------------------|
+  | `0.87` | Best Quality   | 87 %                |
+  | `0.77` | Ultra Quality  | 77 % (default)      |
+  | `0.67` | Quality        | 67 %                |
+  | `0.59` | Balanced       | 59 %                |
+  | `0.50` | Performance    | 50 %                |
+  | `-1`   | Custom         | Set via `CUSTOM_PIXEL_DENSITY` |
+</ParamField>
+
+<ParamField path="FSR/SHARPEN2" type="number" default="0.5">
+  Post-upscale sharpness for the official SDK implementation. Range: **0.0 – 1.0**. Higher values restore fine texture detail lost during downscaling.
+</ParamField>
+
+<ParamField path="FSR/ADJUST_MIP_BIAS" type="number" default="0.5">
+  Shifts the texture MIP selection bias to compensate for the lower internal resolution, improving texture detail sharpness at the cost of slightly more aliasing on mipmapped surfaces. Range: **0.0 – 1.0**.
+</ParamField>
+
+---
+
+### Render Scale
+
+```ini
+[RENDER_SCALE]
+SCALE=1
+SCREENSHOTS_SCALE=1
+```
+
+<ParamField path="RENDER_SCALE/SCALE" type="number" default="1">
+  Scales the entire rendered output — UI, 3-D scene, and all post-processing — as a fraction of the configured AC resolution. Range: **0.1 – 1.0**. Useful for high-DPI laptop displays: set AC to native 4K, disable fullscreen, and set `SCALE=0.5` for a FullHD-equivalent render with a significant performance gain.
+
+  **Not compatible with fullscreen mode.**
+</ParamField>
+
+<ParamField path="RENDER_SCALE/SCREENSHOTS_SCALE" type="number" default="1">
+  Resolution multiplier for accumulative screenshots specifically. Range: **0.1 – 2.0**. Values above `1.0` super-sample the screenshot above the game resolution.
+</ParamField>
+
+---
+
+### LOD Distance Multipliers
+
+```ini
+[LODS]
+CARS_DISTANCE_MULT=1
+TRACK_DISTANCE_MULT=1
+TREES_DISTANCE_MULT=1
+```
+
+<ParamField path="LODS/CARS_DISTANCE_MULT" type="number" default="1">
+  Multiplier for the distance at which car LODs transition to lower-detail models. Range: **0.2 – 3.2**. Values above `1.0` keep high-detail models visible at greater distances, improving car appearance in replays at a GPU cost.
+</ParamField>
+
+<ParamField path="LODS/TRACK_DISTANCE_MULT" type="number" default="1">
+  Same multiplier for track object LODs. Range: **0.2 – 3.2**.
+</ParamField>
+
+<ParamField path="LODS/TREES_DISTANCE_MULT" type="number" default="1">
+  Multiplier for tree LODs. Range: **0.2 – 3.2**. **Requires a restart** to take effect.
+</ParamField>
+
+---
+
+### Post-Processing Antialiasing
+
+Graphics Adjustments intercepts AC's FXAA slot to offer several higher-quality AA alternatives.
+
+```ini
+[ANTIALIASING]
+MODE=FXAA3
+QUALITY=HIGH
+```
+
+<ParamField path="ANTIALIASING/MODE" type="string" default="FXAA3">
+  Antialiasing algorithm to apply.
+
+  | Value     | Method                        |
+  |-----------|-------------------------------|
+  | `DISABLED`| No post-process AA            |
+  | `DEFAULT` | AC's original FXAA            |
+  | `YEBIS`   | YEBIS-based AA                |
+  | `CMAA`    | Intel CMAA 2.0                |
+  | `FXAA`    | FXAA 1.0                      |
+  | `FXAA3`   | FXAA 3.11 (default)           |
+  | `SMAA`    | Subpixel Morphological AA     |
+</ParamField>
+
+<ParamField path="ANTIALIASING/QUALITY" type="string" default="HIGH">
+  Quality tier for CMAA, FXAA, FXAA3, and SMAA modes. Accepted values: `MEDIUM`, `HIGH`, `ULTRA`.
+</ParamField>
+
+<Tip>
+  For the highest image quality with Extra FX active, use `MODE=FXAA3` (or `SMAA`) combined with TAA in `extra_fx.ini` and FidelityFX CAS (`FFXCAS_PASS=1`, `FFXCAS_SHARPNESS=0.5`). This chain gives temporal smoothing, morphological AA on disoccluded edges, and a final sharpening pass — all at low overhead.
+</Tip>
+
+---
+
+### Adaptive Clip Planes
+
+```ini
+[ADAPTIVE_CLIP_PLANES]
+ENABLED=1
+NEAR_PLANE=0.1, 10
+FAR_PLANE=20000, 30000
+```
+
+<ParamField path="ADAPTIVE_CLIP_PLANES/ENABLED" type="integer" default="1">
+  Dynamically adjusts the near and far clip planes based on the current field of view, eliminating depth-fighting artefacts on close geometry while extending the visible rendering distance to up to 30 km. Leave enabled.
+</ParamField>

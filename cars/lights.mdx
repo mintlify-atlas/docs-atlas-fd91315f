@@ -1,0 +1,265 @@
+---
+title: "Car Light Configuration: Headlights, Brakes, and Emissives"
+sidebarTitle: "Lights"
+description: "Configure dynamic headlights, brake lights, turning indicators, hazards, and emissive mesh materials for any Assetto Corsa car using CSP INI sections."
+---
+
+CSP provides two complementary systems for car lights. **Dynamic lights** (`[LIGHT_HEADLIGHT_X]`, `[LIGHT_BRAKE_X]`, etc.) are true GPU light sources: they cast shadows, illuminate nearby surfaces, and produce specular highlights on surrounding objects. **Emissive meshes** (`[EMISSIVE_LIGHT_X]`, `[EMISSIVE_BRAKE_X]`, etc.) simply make a named KN5 mesh glow without projecting any illumination into the scene. Both systems are meant to be used together — dynamic lights provide the actual illumination while emissive entries give the lens or housing its bright appearance.
+
+<Note>
+  All `COLOR` values throughout this page use the format `r, g, b, brightness` where `r`, `g`, `b` are in the 0–1 range and `brightness` is a HDR multiplier (values above 1 are common for realistic headlights and brake lights). Omitting the brightness component defaults it to 1.
+</Note>
+
+---
+
+## Dynamic Headlights — `[LIGHT_HEADLIGHT_X]`
+
+Each `[LIGHT_HEADLIGHT_X]` section defines one dynamic spotlight bound to the car's headlight state. The `_X` suffix is a zero-based index (`_0`, `_1`, …) so you can have multiple independent lights per car.
+
+<ParamField path="POSITION" type="x, y, z" required>
+  World-space position of the light source relative to the car centre. Units are metres. For example, `0, 0.617, 1.677` places the light just above the front axle centreline.
+</ParamField>
+
+<ParamField path="MIRROR" type="float">
+  Mirrors the light to the opposite X side using this value as the X offset from centre. Set to `0` to disable mirroring. With `MIRROR = 0.618` the light is duplicated at `-0.618` on the X axis.
+</ParamField>
+
+<ParamField path="DIRECTION" type="x, y, z">
+  Normalised direction vector the spotlight faces. `0, -0.2, 1` angles the beam slightly downward toward the road.
+</ParamField>
+
+<ParamField path="SPOT" type="float">
+  Full cone angle in degrees. Smaller values produce a tighter pencil beam; larger values create a wide flood. Typical low-beam value: `52`.
+</ParamField>
+
+<ParamField path="SPOT_SHARPNESS" type="float 0–1">
+  Edge softness of the cone. `0` = very soft, `1` = hard cutoff. Values around `0.3`–`0.6` look realistic.
+</ParamField>
+
+<ParamField path="COLOR" type="r, g, b, brightness">
+  Light colour and intensity when headlights are active. Example: `0.977, 0.988, 1, 10` for a bright cool-white beam.
+</ParamField>
+
+<ParamField path="OFF_COLOR" type="r, g, b, brightness">
+  Light colour/intensity emitted when headlights are **off** (parking-light or ambient glow). Set brightness to 0 to fully extinguish.
+</ParamField>
+
+<ParamField path="RANGE" type="float">
+  Maximum illumination radius in metres. Headlights typically use 50–500+ for road coverage.
+</ParamField>
+
+<ParamField path="DIFFUSE_CONCENTRATION" type="float 0–1">
+  Fraction of the light that contributes to diffuse versus specular illumination. `0.88` is a sensible default.
+</ParamField>
+
+<ParamField path="SECOND_SPOT" type="float">
+  If set, adds a second inner beam (high-beam hotspot) at this angle. Pair with `SECOND_SPOT_INTENSITY`, `SECOND_SPOT_RANGE`, and `SECOND_SPOT_SHARPNESS`.
+</ParamField>
+
+<ParamField path="POPUP_ENABLED" type="0 or 1">
+  Enable popup headlight animation. Requires `POPUP_FILE` (the `.ksanim` animation), `POPUP_START`, and `POPUP_END` (normalised animation positions where the light turns on/off).
+</ParamField>
+
+<ParamField path="SELF_LIGHTNING" type="0, 1, or 'exterioronly'">
+  Whether this light illuminates its own car. `1` = yes, `0` = no, `exterioronly` = only exterior meshes.
+</ParamField>
+
+<ParamField path="FADE_AT" type="float">
+  Distance in metres at which this light begins fading out for distant cars (not the player car). Helps performance in multiplayer.
+</ParamField>
+
+<ParamField path="EXTERIOR_ONLY" type="0 or 1">
+  When `1`, the light does not illuminate interior meshes. Useful for bright headlights that would otherwise over-brighten the cockpit.
+</ParamField>
+
+---
+
+## Dynamic Brake Lights — `[LIGHT_BRAKE_X]`
+
+Brake lights behave like headlights but activate with brake input. They support an **off-state colour** for the dim tail-light condition (brake not pressed but running lights on).
+
+<ParamField path="POSITION" type="x, y, z">
+  Position of the light source behind the car. Negative Z values place it at the rear. Example: `0, 0.547, -1.982`.
+</ParamField>
+
+<ParamField path="COLOR" type="r, g, b, brightness">
+  Colour and intensity when brakes are applied. Typical value: `1, 0, 0, 3`.
+</ParamField>
+
+<ParamField path="OFF_COLOR" type="r, g, b, brightness">
+  Colour when brakes are **not** applied but tail lights are on. Use a dimmer version of the brake colour.
+</ParamField>
+
+<ParamField path="OFF_MULT" type="float">
+  Multiplier for range/intensity when the light is in its off-state. `0.1` makes the tail-light glow much weaker than the full brake light.
+</ParamField>
+
+<ParamField path="SPOT" type="float">
+  Cone angle. Brake lights typically use wide angles (`165`+) because the cluster needs to illuminate a broad area behind the car.
+</ParamField>
+
+<ParamField path="RANGE" type="float">
+  Illumination radius. Brake lights usually need only `2`–`5` metres.
+</ParamField>
+
+<ParamField path="AFFECTS_TRACK" type="0 or 1">
+  When `1`, the brake light casts light onto the road surface. Disable for performance if not needed.
+</ParamField>
+
+---
+
+## Emissive Meshes — `[EMISSIVE_LIGHT_X]`
+
+Emissive sections make a named mesh glow without projecting a real dynamic light. This is the main tool for headlight lens glow, DRLs, rear light clusters, and any interior indicator that needs to brighten.
+
+<ParamField path="NAME" type="string" required>
+  The name of the mesh (or material) in the KN5 to make emissive. Must match the object name exactly as exported from the 3D tool.
+</ParamField>
+
+<ParamField path="BIND_TO_HEADLIGHTS" type="0 or 1">
+  `1` = this emissive activates with the headlight switch. Use for DRL strips and headlight-cluster glow.
+</ParamField>
+
+<ParamField path="COLOR" type="r, g, b[, brightness]">
+  Emissive colour when active. Brightness values above 1 produce a bloom/glare effect in CSP post-processing.
+</ParamField>
+
+<ParamField path="LAG" type="float 0–1">
+  Smooth transition lag. `0` = instant switch, `1` = very slow fade. Values around `0.1`–`0.3` look natural.
+</ParamField>
+
+<ParamField path="LOCATION" type="FRONT, REAR, or NONE">
+  Used by CSP to determine which cluster this emissive belongs to for damage/breakage simulation.
+</ParamField>
+
+<ParamField path="SIMULATE_HEATING" type="float">
+  Simulates a tungsten filament warming up. A value of `0.3` gives a slight yellow tint during the switch-on transient.
+</ParamField>
+
+---
+
+## Brake, Hazard, and Handbrake Emissives
+
+### `[EMISSIVE_BRAKE_X]`
+
+Activates when the driver presses the brake pedal.
+
+```ini
+[EMISSIVE_BRAKE_0]
+NAME         = brake_light
+COLOR        = 20, 3, 0, 20
+OFF_COLOR    = 10, 0, 0
+```
+
+`OFF_COLOR` sets the dim tail-light appearance when brakes are not pressed (running lights on). The mesh glows at full `COLOR` brightness during braking and dims to `OFF_COLOR` otherwise.
+
+### `[EMISSIVE_HAZARD_X]`
+
+Tied to the hazard-light switch. The mesh flashes at the standard hazard frequency.
+
+```ini
+[EMISSIVE_HAZARD_0]
+NAME             = hazard_int
+COLOR            = 2, 0, 0
+OFF_COLOR        = 2.5, 0.1, 0
+LAG              = 0.0
+SIMULATE_HEATING = 0.0
+```
+
+### `[EMISSIVE_HANDBRAKE_X]`
+
+Glows whenever the handbrake is engaged.
+
+```ini
+[EMISSIVE_HANDBRAKE_0]
+NAME             = _ext_dashboard_handbrake
+COLOR            = 24, 0, 0
+LAG              = 0.0
+LOCATION         = NONE
+SIMULATE_HEATING = 0.0
+```
+
+---
+
+## Bounced Light Effects
+
+CSP can project a coloured gradient onto the road surface beneath the lights to simulate light "bleeding" off the asphalt. These sections have no indexed suffix — one `[BOUNCED_HEADLIGHTS]` and one `[BOUNCED_BRAKE_LIGHTS]` per config.
+
+<ParamField path="ACTIVE" type="0 or 1">
+  Enable or disable the bounced light effect.
+</ParamField>
+
+<ParamField path="FADE_AT" type="float">
+  Camera distance in metres at which the effect starts fading. `200` is a sensible default for multiplayer performance.
+</ParamField>
+
+<ParamField path="FADE_SMOOTH" type="float">
+  Width of the fade transition in metres.
+</ParamField>
+
+<ParamField path="FALLOFF" type="float">
+  How quickly the gradient intensity drops with distance from the light source. `0.7` gives a natural roll-off.
+</ParamField>
+
+<ParamField path="GRADIENT_OFFSET" type="float 0–1">
+  Where along the gradient the peak brightness sits. `0.8` pushes the brightest point close to the light.
+</ParamField>
+
+<ParamField path="MULT" type="float">
+  Global brightness multiplier for the entire bounced effect.
+</ParamField>
+
+<ParamField path="OFFSET" type="float">
+  Vertical offset in metres: how far above the road plane the gradient is projected.
+</ParamField>
+
+---
+
+## Real-World Example — RUF Yellowbird
+
+The following is the complete light setup from `config/cars/kunos/ruf_yellowbird.ini`, showing a typical single-headlight-per-side configuration with selflighting and bounced effects:
+
+```ini
+[LIGHTING]
+INTERIOR_FAKE_UPPER_SHADOW_HEIGHT = -0.02
+INTERIOR_FAKE_UPPER_SHADOW_FADE  = 0.02
+EMISSIVE_HEADLIGHTS_MULT         = 1.4
+EMISSIVE_PARKINGLIGHTS_MULT      = 2.5
+EMISSIVE_BRAKELIGHTS_MULT        = 0.25
+
+; True dynamic headlight — casts shadows and illuminates the road
+[LIGHT_HEADLIGHT_0]
+SELF_LIGHTNING = 0
+POSITION       = 0, 0.64, 1.75
+MIRROR         = 0.618
+
+; Headlight self-illumination template from the common library
+[INCLUDE: common/selflighting.ini]
+
+[SelfLight_Headlights]
+POSITION              = 0, 0.64, 1.76
+MIRROR                = 0.618
+DIRECTION             = 0, 0.3, 1
+AFFECTS_TRACK         = 0
+DIFFUSE_CONCENTRATION = 1
+BOUND_TO              = Light_Front
+SPOT_SHARPNESS        = 0.5
+SPOT                  = 160
+COLOR                 = 10
+SPECULAR_MULT         = 0
+RANGE                 = 0.5
+
+; Bounced headlight ground gradient
+[BOUNCED_HEADLIGHTS]
+ACTIVE          = 1
+FADE_AT         = 200
+FADE_SMOOTH     = 50
+FALLOFF         = 0.7
+GRADIENT_OFFSET = 0.8
+MULT            = 1
+OFFSET          = 7
+```
+
+<Note>
+  The `[LIGHT_HEADLIGHTS]` section (without a numeric suffix) acts as a **shared base** for all headlight instances. Use `BOUND_TO` to link the light to a named headlight mesh, and `BOUND_EMISSIVE_MAX` to cap the emissive coupling. Any individual `[LIGHT_HEADLIGHT_X]` can then inherit or override these values.
+</Note>

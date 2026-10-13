@@ -1,0 +1,249 @@
+---
+title: "Weather Controllers: Scripting Dynamic Conditions in CSP"
+sidebarTitle: "Weather Controllers"
+description: "Write Lua weather controller scripts for Custom Shaders Patch to set real-time atmospheric conditions, wind, temperature, and rain intensity."
+---
+
+A weather controller is a Lua script that runs inside the WeatherFX system once per simulation frame. Its sole responsibility is to populate an `ac.ConditionsSet` object — a structure describing the complete atmospheric state — and push it to the engine via `ac.setConditionsSet2()`. CSP then uses those values to drive sky shaders, rain rendering, tyre temperature models, and every other system that depends on the weather state. The controller approach lets you implement anything from a trivial static passthrough (as in the base controller) to a fully scripted 24-hour dynamic weather cycle.
+
+## Directory Layout
+
+Each controller lives in its own subfolder under `extension/weather-controllers/` inside the CSP data directory:
+
+```
+extension/
+└── weather-controllers/
+    └── my-controller/
+        ├── manifest.ini
+        └── controller.lua
+```
+
+CSP discovers all folders matching this pattern and makes them selectable in the WeatherFX configuration.
+
+## Declaring a Controller with `manifest.ini`
+
+Every controller folder must contain a `manifest.ini` with an `[ABOUT]` section. The base controller ships with the following declaration:
+
+```ini
+[ABOUT]
+NAME        = Default
+AUTHOR      = x4fab
+VERSION     = 1.0
+DESCRIPTION = Sets conditions from race parameters, nothing dynamic.
+```
+
+| Key | Purpose |
+|---|---|
+| `NAME` | Display name shown in the CSP app and Quick Drive UI |
+| `AUTHOR` | Attribution string |
+| `VERSION` | Semantic version number |
+| `DESCRIPTION` | One-sentence summary of the controller's behaviour |
+
+## Selecting a Controller in `weather_fx.ini`
+
+The active controller is set by the `CONTROLLER` key inside the `[BASIC]` section of `extension/config/weather_fx.ini`:
+
+```ini
+[BASIC]
+ENABLED    = 1
+CONTROLLER = base   ; folder name under extension/weather-controllers/
+```
+
+Change the value to the folder name of whichever controller you want to activate. The `IMPLEMENTATION` key in the same section controls the visual sky/cloud style, which is a separate script.
+
+## The `ac.ConditionsSet` Structure
+
+`ac.ConditionsSet()` constructs a value that holds every parameter the engine needs:
+
+| Field | Type | Description |
+|---|---|---|
+| `currentType` | weather type | The weather category active right now (e.g. clear, light rain, heavy storm) |
+| `upcomingType` | weather type | The weather type that the sky is transitioning toward |
+| `transition` | `number` (0–1) | Blend factor between `currentType` and `upcomingType` |
+| `variableA` | `number` | Arbitrary per-controller variable (usage defined by the controller) |
+| `variableB` | `number` | Arbitrary per-controller variable |
+| `variableC` | `number` | Arbitrary per-controller variable |
+| `temperatures` | temperatures object | Ambient and road surface temperature |
+| `wind` | wind object | Wind direction and speed |
+| `humidity` | `number` (0–1) | Relative humidity |
+| `pressure` | `number` (Pa) | Atmospheric pressure in Pascals (e.g. `101325` = standard sea-level) |
+| `trackState` | track state object | Track rubber / grip level |
+
+## Key `ac.*` API Functions
+
+<Accordion title="ac.getInputWeatherType()">
+Returns the weather type selected by the race setup or server, taking into account any overrides set in Quick Drive. If the setup did not specify an explicit type, CSP guesses one from the numeric weather ID.
+
+```lua
+local weatherType = ac.getInputWeatherType()
+result.currentType  = weatherType
+result.upcomingType = weatherType
+```
+</Accordion>
+
+<Accordion title="ac.getInputTemperatures()">
+Returns the ambient and road temperatures from the race parameters as a temperatures object, ready to assign directly to `conditions.temperatures`.
+
+```lua
+result.temperatures = ac.getInputTemperatures()
+```
+</Accordion>
+
+<Accordion title="ac.getInputWind()">
+Returns a wind descriptor (direction and speed) from the race parameters.
+
+```lua
+result.wind = ac.getInputWind()
+```
+</Accordion>
+
+<Accordion title="ac.getInputHumidity(refbool)">
+Returns the configured humidity value. The `refbool` output parameter is set to `true` when the race setup actually specified a humidity value; when it is `false`, the value is a CSP default and you may want to synthesise your own.
+
+```lua
+local humidityPresent = refbool(false)
+result.humidity = ac.getInputHumidity(humidityPresent)
+-- humidityPresent.value is true if the setup specified humidity
+```
+</Accordion>
+
+<Accordion title="ac.getInputPressure(refbool)">
+Returns the configured atmospheric pressure in Pascals, with the same presence-flag pattern as humidity.
+
+```lua
+local pressurePresent = refbool(false)
+result.pressure = ac.getInputPressure(pressurePresent)
+```
+</Accordion>
+
+<Accordion title="ac.getInputTrackState()">
+Returns the track-state (grip/rubber) value from the race parameters.
+
+```lua
+result.trackState = ac.getInputTrackState()
+```
+</Accordion>
+
+<Accordion title="ac.setConditionsSet2(conditions)">
+Pushes the populated `ac.ConditionsSet` to the simulation engine. Call this whenever conditions change; calling it with an identical set is cheap.
+
+```lua
+ac.setConditionsSet2(conditions)
+```
+</Accordion>
+
+<Accordion title="ac.getSim()">
+Returns the global simulation state object. The base controller uses `sim.timestamp` — the total elapsed simulation time in seconds — to drive Perlin-noise-based humidity and pressure variation when those values are absent from the race setup.
+
+```lua
+local sim = ac.getSim()
+-- sim.timestamp: total elapsed seconds since session start
+```
+</Accordion>
+
+## The `shared/sim/weather` Module
+
+The shared weather utility module provides helpers built on top of the raw API. The most important is `weatherUtils.setRainIntensity()`, which computes the appropriate rain intensity from the current conditions set and writes it back in place:
+
+```lua
+local weatherUtils = require('shared/sim/weather')
+
+-- After populating `result` from input functions:
+weatherUtils.setRainIntensity(result, true)
+-- The second argument enables "smart" intensity derivation from the weather type.
+```
+
+The module also exposes `weatherUtils.debugAware()`, which the base controller uses to check whether a debug override is active — allowing tools like the CSP app to temporarily force specific conditions without breaking the normal control loop.
+
+## Base Controller Reference
+
+The base controller (`weather-controllers/base/controller.lua`) is the canonical minimal implementation. It reads every available input, delegates rain intensity to the shared utility, and in `script.update` handles three cases: a live debug override, recovery from a debug override, and smooth Perlin-noise variation for missing humidity or pressure values.
+
+```lua
+--------
+-- Basic controller for static weather, uses selected weather ID to get weather type.
+--------
+
+local weatherUtils = require('shared/sim/weather')
+local humidityPresent = refbool(false)
+local pressurePresent = refbool(false)
+local fakeHumidityOrPressure = false
+
+local function getInputConditions()
+  -- if weather doesn't have type set, value will be guessed based on weather ID
+  local weatherType = ac.getInputWeatherType()
+  local result = ac.ConditionsSet()
+  result.currentType  = weatherType
+  result.upcomingType = weatherType
+  result.transition   = 0.0
+  result.variableA    = 0.0
+  result.variableB    = 0.0
+  result.variableC    = 0.0
+  result.temperatures = ac.getInputTemperatures()
+  result.wind         = ac.getInputWind()
+  result.humidity     = ac.getInputHumidity(humidityPresent)
+  result.pressure     = ac.getInputPressure(pressurePresent)
+  result.trackState   = ac.getInputTrackState()
+  weatherUtils.setRainIntensity(result, true)
+  fakeHumidityOrPressure = false
+  return result
+end
+
+local conditions = getInputConditions()
+ac.setConditionsSet2(conditions)
+
+local overrideSet = false
+local sim = ac.getSim()
+
+function script.update(dt)
+  if weatherUtils.debugAware(conditions, 1) then
+    -- A debug tool is forcing conditions; push them and remember we're overriding.
+    ac.setConditionsSet2(conditions)
+    overrideSet = true
+  elseif overrideSet then
+    -- Debug override just ended; reload from race parameters.
+    overrideSet = false
+    conditions  = getInputConditions()
+    ac.setConditionsSet2(conditions)
+  elseif fakeHumidityOrPressure then
+    -- No humidity/pressure in setup: vary smoothly with Perlin noise over time.
+    local altState0 = math.perlin(sim.timestamp / 3.12e5, 3)
+    local altState1 = math.perlin(sim.timestamp / 3.17e5, 3)
+    if not humidityPresent.value then
+      conditions.humidity = math.saturateN(0.5 + 0.4 * altState0)
+    end
+    if not pressurePresent.value then
+      conditions.pressure = 101325 + 1e3 * altState1
+    end
+    ac.setConditionsSet2(conditions)
+  end
+end
+```
+
+<Note>
+The base controller is public domain and can be freely copied, modified, and redistributed as the starting point for your own weather controller. The simplest customisation is to call `ac.setConditionsSet2()` with edited field values in `script.update` to introduce smooth temporal variation — for example, cycling `transition` between two weather types over several in-game hours.
+</Note>
+
+## Building a Custom Controller
+
+<Steps>
+  <Step title="Create the folder">
+    Make a new directory at `extension/weather-controllers/my-weather/` inside your CSP data path (usually `%LOCALAPPDATA%\AcTools Content Manager\Apps\content_manager\plugins\CustomShadersApp\extension`).
+  </Step>
+  <Step title="Add manifest.ini">
+    Create `manifest.ini` with your name, author, and version in the `[ABOUT]` section.
+  </Step>
+  <Step title="Write controller.lua">
+    Start from the base controller above. In `script.update(dt)`, modify the `conditions` table — change `currentType`, advance a time-of-day cycle, interpolate between two condition sets — then call `ac.setConditionsSet2(conditions)`.
+  </Step>
+  <Step title="Select the controller">
+    Open the CSP app or edit `extension/config/weather_fx.ini` and set `CONTROLLER = my-weather`.
+  </Step>
+  <Step title="Test in-game">
+    Launch a session. Use the CSP debug overlay (if available) to confirm the conditions values are updating as expected.
+  </Step>
+</Steps>
+
+<Warning>
+Setting extreme values — wind speed above 35 km/h or temperatures outside 0–36 °C — requires enabling `INCREASE_CONDITIONS_LIMITS = 1` in the `[TWEAKS]` section of `weather_fx.ini`. Leaving it disabled silently clamps those values, which can cause apparent bugs in controllers that rely on wider ranges.
+</Warning>

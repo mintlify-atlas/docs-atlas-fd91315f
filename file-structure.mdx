@@ -1,0 +1,203 @@
+---
+title: "Extension Config File Structure Reference"
+sidebarTitle: "File Structure"
+description: "Understand how CSP extension config files are organized across config, textures, vao-patches, lua, and weather-controllers directories."
+---
+
+The CSP Extension Config repository maps directly to the `assettocorsa/extension/` folder on disk. Every directory in the repo has a specific role: CSP's subsystems each look for their data in predictable locations, and the naming of individual files is tied to the AC content folder names for cars and tracks. Understanding this structure is essential whether you are writing a new car config, troubleshooting a missing track light, or contributing textures.
+
+## Full Directory Tree
+
+```
+extension/
+├── config/
+│   ├── cars/
+│   │   ├── common/          # Shared templates included by per-car configs
+│   │   ├── kunos/           # Configs for Kunos (official) cars
+│   │   ├── mods/            # Configs for community mod cars
+│   │   │   ├── URD/
+│   │   │   ├── ddm/
+│   │   │   └── ...
+│   │   └── <car_folder>.ini # Top-level car configs (some mods live here directly)
+│   ├── tracks/
+│   │   ├── common/          # Shared condition presets and material templates
+│   │   ├── generic/         # Generic fallback configs
+│   │   ├── fonts/           # Font assets used by track configs
+│   │   ├── <track>.ini      # Per-track config files
+│   │   └── <track>__*.kn5  # Extra mesh files required by some track configs
+│   ├── general.ini          # Global CSP patch settings
+│   ├── weather_fx.ini       # Weather FX module configuration
+│   ├── rain_fx.ini          # Rain FX module configuration
+│   ├── extra_fx.ini         # Extra FX (SSAO, DoF, bloom) configuration
+│   ├── particles_fx.ini     # Particles FX module configuration
+│   ├── grass_fx.ini         # Grass FX module configuration
+│   ├── lighting_fx.ini      # Lighting FX module configuration
+│   ├── tyres_fx.ini         # Tyre FX (blur, heating) configuration
+│   ├── fake_shadows_fx.ini  # Fake dynamic shadow blobs under cars
+│   ├── reflections_fx.ini   # Screen-space and cube-map reflections
+│   ├── brakedisc_fx.ini     # Brake disc glow and heat effects
+│   └── ...                  # Other module configs (see full list below)
+├── textures/
+│   ├── cars/                # Per-car texture overrides
+│   ├── tyres_fx/            # Tyre blur and heat shimmer textures
+│   ├── grass_fx/            # Grass billboard textures
+│   ├── particles_fx/        # Smoke, dust, and exhaust particle textures
+│   ├── rain_fx/             # Raindrop, puddle, and spray textures
+│   ├── weather_fx/          # Sky, cloud, and atmosphere textures
+│   ├── color_grading/       # LUT textures for colour grading
+│   ├── flags/               # National flag textures for trackside display
+│   ├── common/              # Shared textures used by multiple modules
+│   ├── people/              # Crowd spectator textures
+│   ├── smaa/                # SMAA anti-aliasing lookup textures
+│   └── fonts/               # Bitmap font textures
+├── vao-patches/             # Vertex ambient occlusion patch files (git submodule)
+├── lua/
+│   ├── chaser-camera/       # Chaser (follow) camera Lua script
+│   ├── cockpit-camera/      # Cockpit camera adjustment script
+│   ├── ffb-postprocess/     # Force-feedback post-processing script
+│   ├── fireworks/           # Fireworks particle effect script
+│   └── new-modes/           # Additional game mode scripts
+├── weather-controllers/
+│   └── base/
+│       ├── controller.lua   # Default Weather FX controller (public domain)
+│       └── manifest.ini     # Controller metadata
+└── backgrounds/             # Loading-screen background images, one folder per track
+```
+
+## Directory Reference
+
+### `config/cars/`
+
+Per-car INI files that configure every CSP feature for a specific car. Each file is named after the car's content folder inside `assettocorsa/content/cars/`. For example, the config for `content/cars/ferrari_458/` is `config/cars/kunos/ferrari_458.ini`.
+
+| Sub-folder | Contents |
+|---|---|
+| `kunos/` | Configs for all cars shipped with base AC and official DLC |
+| `mods/` | Configs for popular community mod cars, grouped by creator (URD, DDM, etc.) |
+| `common/` | Reusable template fragments included by per-car configs via `[INCLUDE]` |
+
+The `common/` folder holds templates such as `gt3_lights.ini` (standard GT3 headlight layout), `materials_carpaint.ini` (PBR car paint setup), `materials_glass.ini`, `materials_interior.ini`, `f1_generic.ini`, and others. Car configs reference these using the `[INCLUDE]` directive rather than duplicating the definitions.
+
+### `config/tracks/`
+
+Per-track INI files named after the track's content folder in `assettocorsa/content/tracks/`. The file `config/tracks/ks_nordschleife.ini` configures the Kunos Nürburgring Nordschleife; `config/tracks/spa.ini` configures the community Spa-Francorchamps mod.
+
+Many track configs also have companion `.kn5` mesh files in the same directory. These are additional 3D meshes injected into the track scene at runtime via `[MODEL_REPLACEMENT]` sections — typically used to add light fixture geometry that was not present in the original track. The `.kn5` files follow the naming pattern `<track_folder>__<purpose>.kn5`, for example `ks_nordschleife__lights.kn5`.
+
+The `common/` sub-folder contains shared track fragments:
+
+| File | Purpose |
+|---|---|
+| `conditions.ini` | Standard day/night/dawn/dusk lighting condition presets |
+| `all_conditions.ini` | Extended condition set covering more time-of-day slots |
+| `materials_track.ini` | PBR material overrides for common track surface types |
+| `materials_glass.ini` | Glass material overrides for track-side structures |
+| `materials_pbr.ini` | Generic PBR material templates |
+| `materials_base.ini` | Base material definitions |
+| `grass_fx.ini` | Default Grass FX parameters for tracks without custom grass |
+| `particles_track.ini` | Track-specific particle emitter definitions |
+| `custom_emissive.ini` | Shared emissive light definitions |
+| `functions_base.lua` | Shared Lua helper functions |
+
+### `config/*.ini` — Global Module Configs
+
+The root of `config/` holds one INI file per CSP extension module. These govern behaviour that applies to all cars and tracks globally:
+
+| File | Module |
+|---|---|
+| `general.ini` | Core patch settings: live reload, physics experiments, audio, controls |
+| `weather_fx.ini` | Weather FX system: sky rendering, time-of-day transitions |
+| `rain_fx.ini` | Rain FX: road wetness, puddles, raindrop rendering, windscreen wipe |
+| `extra_fx.ini` | Extra FX deferred pass: SSAO, depth-of-field, bloom, lens flare |
+| `particles_fx.ini` | Particles FX: exhaust, tyre smoke, collision debris |
+| `grass_fx.ini` | Grass FX: procedural grass rendering and wind response |
+| `lighting_fx.ini` | Global lighting multipliers and emissive settings |
+| `tyres_fx.ini` | Tyre FX: blur at speed, thermal glow at limit |
+| `fake_shadows_fx.ini` | Blob shadow projectors under cars |
+| `reflections_fx.ini` | Screen-space reflections and cube-map probe behaviour |
+| `brakedisc_fx.ini` | Brake disc glow, heat shimmer, and ambient occlusion |
+| `skidmarks_fx.ini` | Skid mark rendering and fade |
+| `windscreen_fx.ini` | Windscreen dirt, rain, and wiper simulation |
+| `smart_mirror.ini` | Interior mirror rendering quality and field of view |
+| `smart_shadows.ini` | Cascaded shadow map improvements |
+| `graphics_adjustments.ini` | Post-processing tweaks: sharpening, chromatic aberration |
+
+### `textures/`
+
+Binary DDS and PNG texture assets consumed by CSP's rendering modules. These are not read by the INI config parser — CSP loads them directly by path. The sub-folder structure mirrors the module that uses each asset:
+
+| Sub-folder | Contents |
+|---|---|
+| `tyres_fx/` | Tyre blur bands and heat-shimmer masks |
+| `grass_fx/` | Grass blade billboards and normal maps |
+| `particles_fx/` | Smoke puffs, dust clouds, exhaust flares |
+| `rain_fx/` | Raindrop normal maps, puddle ripple animations, spray masks |
+| `weather_fx/` | Sky gradient textures, cloud layers, atmosphere lookup tables |
+| `color_grading/` | 3D LUT textures applied as colour-grading post-process |
+| `flags/` | National flag textures for trackside flag animation |
+| `cars/` | Per-car texture overrides (e.g. tyre sidewall lettering) |
+| `people/` | Spectator billboard textures |
+| `common/` | Shared assets referenced by multiple modules |
+| `smaa/` | Look-up textures required by the SMAA anti-aliasing pass |
+
+### `vao-patches/`
+
+Pre-baked vertex ambient occlusion data stored as a git submodule pointing to the [acc-extension-extra-vao](https://github.com/ac-custom-shaders-patch/acc-extension-extra-vao) repository. VAO patches add contact shadows and shading depth to cars without any runtime cost — the shadow information is computed offline and stored per-vertex. Each `.vao-patch` file targets a specific car or track KN5 mesh by name.
+
+### `lua/`
+
+Lua scripts that extend or replace CSP's built-in systems. Each script lives in its own sub-folder:
+
+| Sub-folder | Purpose |
+|---|---|
+| `chaser-camera/` | Scripted chaser (follow) camera with configurable spring and damping |
+| `cockpit-camera/` | Cockpit camera head movement and G-force simulation |
+| `ffb-postprocess/` | Post-processing layer applied to raw FFB output from the physics engine |
+| `fireworks/` | Particle-based fireworks effect triggered by in-game events |
+| `new-modes/` | Additional scripted game modes beyond AC's built-in race types |
+
+### `weather-controllers/`
+
+Lua scripts that drive the Weather FX simulation. The only controller shipped in this repo is `base/controller.lua` — the default implementation used when no track-specific controller is configured. It is released into the public domain and is the recommended starting point for anyone writing a custom weather controller. The `manifest.ini` in the same folder declares the controller's metadata (name, version, compatible CSP version).
+
+### `backgrounds/`
+
+Loading-screen background images, one sub-folder per track. Each sub-folder is named after the track's content folder (e.g. `backgrounds/ks_nordschleife/`). Content Manager and CSP display these images while the track loads, replacing AC's default black screen.
+
+## Naming Conventions
+
+### Car Config Filenames
+
+Car config filenames match the name of the car's folder under `assettocorsa/content/cars/` exactly, with a `.ini` extension. The car folder for the Ferrari 458 Italia is `ferrari_458`, so its config is `config/cars/kunos/ferrari_458.ini`. Variant cars (e.g. the S3 season update) get their own file: `ferrari_458_s3.ini`.
+
+### Track Config Filenames
+
+Track config filenames match the folder name under `assettocorsa/content/tracks/`. Because many community tracks include a layout sub-folder, a config may apply to all layouts of a track (`ks_brands_hatch.ini`) or to a specific layout by using the layout subfolder name as a suffix.
+
+### Companion KN5 Filenames
+
+Extra mesh files bundled with a track config use double underscores as a separator between the track name and a descriptor: `<track>__<descriptor>.kn5`. For example, `ks_nordschleife__lights.kn5` adds the Nordschleife floodlight geometry; `mugello__flood.kn5` adds the Mugello floodlight gantries.
+
+## The `[INCLUDE]` Directive
+
+Both car and track configs support an `[INCLUDE]` directive that pulls in another INI file as if its contents appeared inline. This allows common setups — GT3 headlight layouts, PBR material templates, shared condition presets — to be defined once and reused by dozens of configs without copying.
+
+```ini
+; In config/cars/kunos/ferrari_458.ini
+[INCLUDE]
+INCLUDE=common/no_popup_lights.ini
+
+; Inline include with a following section override
+[INCLUDE: common/materials_carpaint.ini]
+CarPaintMaterial=MAT_CARPAINT,MAT_CARPAINT_Roof
+[Material_CarPaint_Solid]
+BrightnessAdjustment=0.8
+```
+
+The path in `INCLUDE=` is relative to the file containing the directive. For a car config in `config/cars/kunos/`, the path `common/no_popup_lights.ini` resolves to `config/cars/common/no_popup_lights.ini`. For a track config in `config/tracks/`, `common/conditions.ini` resolves to `config/tracks/common/conditions.ini`.
+
+The inline form `[INCLUDE: path/to/file.ini]` pulls in the referenced file and then allows the immediately following sections in the current file to override or extend specific sections from the included file, without affecting other configs that include the same base file.
+
+<Warning>
+  Include paths are case-sensitive on Linux-based servers. Always use the exact capitalisation of the target filename, even when developing on Windows. A config that works locally may silently fail to load included files when deployed to a Linux host.
+</Warning>

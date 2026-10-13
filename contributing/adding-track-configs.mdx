@@ -1,0 +1,386 @@
+---
+title: "Contributing Track Configs to CSP Extension Config"
+sidebarTitle: "Track Configs"
+description: "Step-by-step guide to creating, testing, and submitting a new track lighting configuration for the CSP Extension Config repository."
+---
+
+Track configs are the heart of night racing in Assetto Corsa with CSP. A single well-crafted `.ini` file can transform a track that goes pitch-black after sunset into a convincing, atmospherically lit circuit — pitlane floods, marshal-post spots, advertising board glow, and ambient bounce light from the tarmac all defined in plain text. Every track config in this repository was contributed by a community member, and if a track you race on doesn't have one yet, this guide will help you create it from scratch, test it live, and get it merged.
+
+<Note>
+The repository's automated checker tracks a **Track configs status** badge (visible in the README) powered by `cspdata.acstuff.club`. A red badge means a committed config contains an unresolved warning — an invalid mesh name, a missing required field, or a broken `INCLUDE` reference. Aim to keep the badge green after your PR lands.
+</Note>
+
+## Contribution Workflow
+
+<Steps>
+
+### Fork the repository on GitHub
+
+Navigate to [github.com/ac-custom-shaders-patch/acc-extension-config](https://github.com/ac-custom-shaders-patch/acc-extension-config) and click **Fork**. Clone your fork locally. Track configs live under:
+
+```
+extension/
+└── config/
+    └── tracks/
+        ├── common/       ← shared include files (conditions, materials helpers)
+        ├── ks_brands_hatch.ini
+        ├── ks_red_bull_ring.ini
+        └── ...           ← one .ini per track folder
+```
+
+### Find your track's folder name
+
+Open `assettocorsa/content/tracks/` in your AC installation. Each subfolder is the track identifier. For a track with multiple layouts (e.g. `ks_nurburgring/layout_nordschleife/`) the config is always named after the **top-level** folder: `ks_nurburgring.ini`. A single config file covers all layouts of that track.
+
+### Create the config file in your fork
+
+Create `config/tracks/<trackfoldername>.ini` in your fork. For example, for the fictional track `my_circuit`:
+
+```
+config/tracks/my_circuit.ini
+```
+
+The file does not need to include every section at once — start minimal and expand as you test.
+
+### Add the `[ABOUT]` section
+
+The `[ABOUT]` block is consumed by Blamer's BLM Lights app and is also checked by reviewers to understand the state of the config. Fill it in accurately:
+
+```ini
+[ABOUT]
+AUTHOR        = YourName
+DATE_RELEASE  = 2024-06-15
+LIGHTS_COUNT  = 12/36/0     ; number in format: series/total/vao
+VERSION       = 1.0
+NOTES         = My Circuit – night lighting pass
+```
+
+`LIGHTS_COUNT` follows the convention `<LIGHT_SERIES count>/<total light count>/<VAO patches count>`.
+
+### Add `[INCLUDE: common/conditions.ini]` for standard conditions
+
+The shared conditions file defines named lighting triggers like `NIGHT_SMOOTH`, `ALWAYS_ON`, `RACING_FLAG`, and `HAZARDS` that you will reference throughout your config. Always include it near the top of every track config:
+
+```ini
+[INCLUDE]
+INCLUDE = common/conditions.ini
+```
+
+This pulls in pre-defined `[CONDITION_80]` through `[CONDITION_93]` blocks — covering smoothly interpolated night transitions, always-on conditions, flag-colour LUTs, and flashing hazard conditions. You can define additional custom conditions in your own file using indices 0–74 (leave 75–99 for the shared file).
+
+<Tip>
+If you need a custom blinking condition (for tower warning lights, pit entry beacons, etc.) define it as `[CONDITION_0]` through `[CONDITION_74]` in your track's own config, or in a separate file that you include. Never edit `common/conditions.ini` directly.
+</Tip>
+
+### Add `[BOUNCED_LIGHT]` with surface materials
+
+Bounced light makes the tarmac glow subtly under floodlights at night, giving a much more convincing atmosphere than raw spotlight cones alone. Set `SUPPORTED = 1` and list the surface materials that should reflect light back up. You can also define occluding objects (walls, barriers) and spot materials (rocks, kerbs):
+
+```ini
+[BOUNCED_LIGHT]
+SUPPORTED          = 1
+SURFACE_MATERIALS  = road_surface, pitlane_surface, kerb_material
+OBJECT_MATERIALS   = barrier_wall, armco_rail, advertising_board
+OCCLUDING_MATERIALS = concrete_wall
+```
+
+Finding the correct material names requires inspecting the track's KN5 files — see the [Finding Mesh and Material Names](#finding-mesh-and-material-names) section below.
+
+### Add `[LIGHT_SERIES_X]` for rows of lights linked to geometry
+
+`LIGHT_SERIES_X` is the workhorse section for any row, arc, or cluster of identical lights (floodlights, pitlane overheads, streetlights). CSP reads the positions from the named mesh or material and automatically generates light cones at each polygon cluster. Replace `X` with 0, 1, 2, … for multiple series:
+
+```ini
+[LIGHT_SERIES_0]
+ACTIVE             = 1
+DESCRIPTION        = pitlane overhead floods
+CONDITION          = NIGHT_SMOOTH
+MATERIALS          = pitlane_light_material  ; or use MESHES = pitlane_lights_mesh
+DIRECTION          = 0, -1, 0               ; pointing straight down
+SPOT               = 150
+SPOT_SHARPNESS     = 0.5
+RANGE              = 20
+RANGE_GRADIENT_OFFSET = 0.2
+CLUSTER_THRESHOLD  = 4                      ; min distance (m) between generated light sources
+COLOR              = 1, 0.9, 0.7, 30        ; warm white, high brightness
+COLOR_OFF          = 0                      ; dark when inactive
+DIFFUSE_CONCENTRATION = 0.7
+FADE_AT            = 700
+FADE_SMOOTH        = 100
+SPECULAR_MULT      = 0
+```
+
+<Warning>
+`RANGE`, `FADE_AT`, and `CLUSTER_THRESHOLD` directly impact performance. Larger values dramatically increase the number of rendered light calculations. For distant overhead floodlights use `RANGE = 20–30` and `FADE_AT = 500–800`. For small decorative spots use `RANGE = 5–10` and `FADE_AT = 150–300`. Keep `CLUSTER_THRESHOLD` at 4 or higher for closely-spaced lights.
+</Warning>
+
+`MATERIAL_ADJUSTMENT_X` is a companion section that makes the light mesh itself glow emissively — with zero performance cost, unlike `LIGHT_SERIES_X`. Pair one with each series:
+
+```ini
+[MATERIAL_ADJUSTMENT_0]
+ACTIVE             = 1
+DESCRIPTION        = pitlane overhead floods glow
+CONDITION          = NIGHT_SMOOTH
+MATERIALS          = pitlane_light_material
+KEY_0              = ksEmissive
+VALUE_0            = 255, 255, 255, 0.5
+VALUE_0_OFF        = 0
+KEY_1              = ksAlphaRef
+VALUE_1            = -193
+VALUE_1_OFF        = 0
+```
+
+### Add individual `[LIGHT_X]` for unique light sources
+
+For one-off light sources (a control tower beacon, a safety car light bar, a sponsor sign) use `[LIGHT_X]` with an explicit `POSITION` or a `LINE_FROM` / `LINE_TO` pair for linear light bars:
+
+```ini
+[LIGHT_0]
+ACTIVE             = 1
+DESCRIPTION        = control tower beacon
+CONDITION          = NIGHT_SMOOTH
+POSITION           = 125.4, 18.2, -340.6
+DIRECTION          = 0, -1, 0
+SPOT               = 200
+SPOT_SHARPNESS     = 0.1
+RANGE              = 25
+RANGE_GRADIENT_OFFSET = 0.15
+COLOR              = 255, 240, 200, 15
+DIFFUSE_CONCENTRATION = 0.88
+FADE_AT            = 500
+FADE_SMOOTH        = 30
+
+[LIGHT_1]
+ACTIVE             = 1
+DESCRIPTION        = pit exit linear sign
+CONDITION          = ALWAYS_ON
+LINE_FROM          = -8.2, 3.1, 104.5
+LINE_TO            = 8.2,  3.1, 104.5
+DIRECTION          = 0, -1, 0
+RANGE              = 6
+COLOR              = 0, 8, 0, 5        ; green exit signal
+FADE_AT            = 200
+FADE_SMOOTH        = 30
+```
+
+The `CONDITION` key references any name defined in `common/conditions.ini` or your own custom conditions. The most useful built-in conditions are:
+
+| Condition name | When active |
+|---|---|
+| `NIGHT_SMOOTH` | After sunset, with a smooth lag transition |
+| `NIGHT_SHARP` | After sunset, instant (no lag) |
+| `ALWAYS_ON` | Continuously, ignoring time of day |
+| `ALL_DAYS` | All day long, dimmer at noon |
+| `RACING_FLAG` | Colour follows the active race flag |
+| `HAZARDS` | Flashes at 4 Hz, synced |
+
+### Test day and night transitions
+
+Copy your work-in-progress config to:
+
+```
+%userprofile%\Documents\Assetto Corsa\cfg\extension\config\tracks\my_circuit.ini
+```
+
+CSP reloads the track config live — save the file while AC is running and changes take effect immediately. Verify:
+
+- **Night** — all intended lights are on; no lights are floating above the geometry or sinking below the road.
+- **Day** — lights gated with `NIGHT_SMOOTH` or `NIGHT_SHARP` are fully off; the track doesn't look artificially bright.
+- **Dawn / Dusk** — `NIGHT_SMOOTH`-gated lights transition gradually through the lag curve; no hard pop-in.
+- **Bounced light** — on a night session look at the tarmac under floodlit areas; it should show a subtle warm glow. If it's missing, check `SURFACE_MATERIALS` names.
+
+### Open a pull request
+
+Push your new config file to your fork and open a pull request against the `master` branch. In the PR description include:
+
+- The track folder name
+- The number of `LIGHT_SERIES` and `LIGHT` sections added
+- Whether any companion `.kn5` files are required (see [Companion KN5 Files](#companion-kn5-files) below)
+- Screenshots at night if possible — reviewers strongly appreciate visual verification
+
+</Steps>
+
+## Minimal Working Example
+
+The following example shows a complete, self-contained track config for a hypothetical circuit, demonstrating the most commonly needed sections. It is based on the patterns established in `ks_brands_hatch.ini` and explained in the `_doc_config_tracks.ini` reference.
+
+```ini
+; config/tracks/my_circuit.ini
+; Night lighting for My Circuit
+; Based on patterns from ks_brands_hatch.ini
+
+[ABOUT]
+AUTHOR        = YourName
+DATE_RELEASE  = 2024-06-15
+LIGHTS_COUNT  = 2/4/0
+VERSION       = 1.0
+
+[INCLUDE]
+INCLUDE = common/conditions.ini
+
+; --- Bounced light from tarmac surfaces ---
+[BOUNCED_LIGHT]
+SUPPORTED         = 1
+SURFACE_MATERIALS = road_surface, pitlane_surface
+
+; ============================================================
+; PITLANE OVERHEAD FLOODLIGHTS
+; ============================================================
+
+; Step 1: Make the light mesh glow emissively (free, no fps cost)
+[MATERIAL_ADJUSTMENT_0]
+ACTIVE            = 1
+VISIBILITY_LEVEL  = 0
+DESCRIPTION       = pitlane floods: glow
+MATERIALS         = pitlane_light_housing
+KEY_0             = ksEmissive
+VALUE_0           = 255, 245, 220, 0.6
+VALUE_0_OFF       = 0
+KEY_1             = ksAlphaRef
+VALUE_1           = -193
+VALUE_1_OFF       = 0
+CONDITION         = NIGHT_SMOOTH
+
+; Step 2: Cast a light cone from the same mesh (fps cost, tune range carefully)
+[LIGHT_SERIES_0]
+ACTIVE            = 1
+VISIBILITY_LEVEL  = 0
+DESCRIPTION       = pitlane floods: cones
+CONDITION         = NIGHT_SMOOTH
+MATERIALS         = pitlane_light_housing
+DIRECTION         = 0, -1, 0
+SPOT              = 150
+SPOT_SHARPNESS    = 0.5
+RANGE             = 20
+RANGE_GRADIENT_OFFSET = 0.2
+CLUSTER_THRESHOLD = 5
+DIFFUSE_CONCENTRATION = 0.7
+COLOR             = 228, 228, 200, 0.05
+COLOR_OFF         = 0
+FADE_AT           = 700
+FADE_SMOOTH       = 100
+SPECULAR_MULT     = 0
+
+; ============================================================
+; MAIN GRANDSTAND FLOODLIGHTS
+; ============================================================
+
+[MATERIAL_ADJUSTMENT_1]
+ACTIVE            = 1
+DESCRIPTION       = grandstand floods: glow
+MATERIALS         = grandstand_flood_housing
+KEY_0             = ksEmissive
+VALUE_0           = 255, 250, 230, 0.8
+VALUE_0_OFF       = 0
+KEY_1             = ksAlphaRef
+VALUE_1           = -193
+VALUE_1_OFF       = 0
+CONDITION         = NIGHT_SMOOTH
+
+[LIGHT_SERIES_1]
+ACTIVE            = 1
+DESCRIPTION       = grandstand floods: cones
+CONDITION         = NIGHT_SMOOTH
+MATERIALS         = grandstand_flood_housing
+DIRECTION         = 0, -1, 0.3
+SPOT              = 130
+SPOT_SHARPNESS    = 0.6
+RANGE             = 30
+RANGE_GRADIENT_OFFSET = 0.25
+CLUSTER_THRESHOLD = 8
+DIFFUSE_CONCENTRATION = 0.6
+COLOR             = 240, 240, 210, 0.06
+COLOR_OFF         = 0
+FADE_AT           = 800
+FADE_SMOOTH       = 100
+SPECULAR_MULT     = 0
+
+; ============================================================
+; PIT ENTRY SIGNAL (always on, green)
+; ============================================================
+
+[LIGHT_0]
+ACTIVE            = 1
+DESCRIPTION       = pit entry signal
+CONDITION         = ALWAYS_ON
+POSITION          = -4.5, 3.2, 80.0
+DIRECTION         = 0, -1, 0
+SPOT              = 160
+SPOT_SHARPNESS    = 0.5
+RANGE             = 8
+RANGE_GRADIENT_OFFSET = 0.3
+COLOR             = 0, 10, 0, 3
+DIFFUSE_CONCENTRATION = 0.88
+FADE_AT           = 200
+FADE_SMOOTH       = 30
+```
+
+## Finding Mesh and Material Names
+
+Every `MATERIALS =` and `MESHES =` value in a track config must exactly match a name present in the track's KN5 files. There are two practical ways to find these names:
+
+<CardGroup cols={2}>
+  <Card title="AC Content Manager Model Viewer" icon="eye">
+    Open Content Manager, go to the track's detail page, and use the built-in **KN5 Inspector** (available in full version). You can browse the scene hierarchy, click a mesh, and see its material name directly in the panel.
+  </Card>
+  <Card title="KN5 Explorer / 3D Viewer" icon="cube">
+    Tools like **KN5 Explorer** (community tool) and **3D Sim Ed** can open `.kn5` files directly and display the full mesh and material list. Search for words like `light`, `lamp`, `flood`, or `spot` to find relevant entries quickly.
+  </Card>
+</CardGroup>
+
+You can also use wildcard-style matching in some contexts. In `MESHES =` values, the `?` character matches any single character, which is helpful when meshes follow a numbered pattern such as `pitlane_light_001`, `pitlane_light_002`, etc. — you can write `MESHES = pitlane_light_?`.
+
+<Tip>
+Material names are case-sensitive. `Road_Surface` and `road_surface` are treated as different materials. Always copy-paste names directly from the KN5 inspector rather than typing them by hand.
+</Tip>
+
+## Companion KN5 Files
+
+Some tracks require geometry that does not exist in the original KN5 — for example, bulb meshes for light housings that only have a flat polygon, or dedicated emissive proxy geometry for large LED panels. In these cases a **companion KN5** file is committed alongside the `.ini` and inserted into the scene at load time using `[MODEL_REPLACEMENT_X]`:
+
+```ini
+[MODEL_REPLACEMENT_0]
+FILE   = my_circuit.kn5                      ; original track KN5
+INSERT = my_circuit__lights.kn5              ; companion KN5 to inject
+INSERT_AFTER = some_mesh_anchor_name         ; where in the scene graph to insert
+```
+
+The companion KN5 contains only the extra geometry (e.g. light-bulb spheres, emissive panel planes). Its meshes and materials are then referenced just like any other mesh in `MATERIAL_ADJUSTMENT_X` and `LIGHT_SERIES_X` sections.
+
+A real-world example from the repository is `ks_nurburgring.ini`, which requires four companion KN5 files:
+
+```
+nurbAllGlass.kn5
+nurbSpots.kn5
+nurbSpotsPad.kn5
+nurbpitglass2.kn5
+```
+
+If your contribution requires companion KN5 files, include them in your pull request alongside the `.ini`. Companion KN5s go in the same directory as the track's original KN5, under `assettocorsa/content/tracks/<trackfoldername>/`.
+
+## Reference Configs
+
+These four configs are the most complete and well-commented examples in the repository. Study them before starting your own:
+
+<CardGroup cols={2}>
+  <Card title="ks_brands_hatch.ini" icon="flag-checkered" href="https://github.com/ac-custom-shaders-patch/acc-extension-config/blob/master/config/tracks/ks_brands_hatch.ini">
+    The original reference track config, authored by x4fab (the patch creator) himself. Contains extensive inline comments explaining every decision. Start here for an authoritative introduction to track config structure.
+  </Card>
+  <Card title="ks_red_bull_ring.ini" icon="flag-checkered" href="https://github.com/ac-custom-shaders-patch/acc-extension-config/blob/master/config/tracks/ks_red_bull_ring.ini">
+    A clean, well-organised example of a modern floodlit circuit with multiple light series, material adjustments, and bounced light configuration.
+  </Card>
+  <Card title="forliring.ini" icon="flag-checkered" href="https://github.com/ac-custom-shaders-patch/acc-extension-config/blob/master/config/tracks/forliring.ini">
+    Good reference for a longer track with varying lighting conditions across different sectors. Shows how to organise large numbers of `LIGHT_SERIES` sections readably.
+  </Card>
+  <Card title="ks_highlands.ini" icon="flag-checkered" href="https://github.com/ac-custom-shaders-patch/acc-extension-config/blob/master/config/tracks/ks_highlands.ini">
+    Demonstrates atmospheric outdoor lighting for a natural-environment circuit, including `CONDITION`-gated ambient adjustments and subtle use of `ALL_DAYS` conditions for always-present road markings.
+  </Card>
+</CardGroup>
+
+## Getting Help
+
+If you're stuck on a mesh name, unsure about a performance trade-off, or want feedback on a work-in-progress config before submitting a PR, the community Discord is the right place:
+
+[**discord.gg/W2KQCMH**](https://discord.gg/W2KQCMH)
+
+The wiki linked from the repository README also contains additional technical detail on bounced light clip points, shader replacement options, and condition LUT syntax.

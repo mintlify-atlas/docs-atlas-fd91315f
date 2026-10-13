@@ -1,0 +1,457 @@
+---
+title: "Track Light Configuration: LIGHT_X and LIGHT_SERIES_X"
+sidebarTitle: "Lights"
+description: "Add dynamic trackside lighting to any Assetto Corsa circuit using CSP LIGHT_X point lights and LIGHT_SERIES_X mesh-based light series sections."
+---
+
+CSP provides two complementary systems for making trackside lights feel alive at night. The first — `MATERIAL_ADJUSTMENT_X` — manipulates shader properties (such as `ksEmissive`) to make lamp meshes glow, with virtually no frame-rate cost. The second — `LIGHT_X` and `LIGHT_SERIES_X` — spawns real dynamic lights that cast actual light cones and specular highlights onto the road and surrounding geometry. Both systems are typically used together: the material adjustment handles the visible bulb glow, while a companion light series does the actual illumination of the track surface.
+
+<Note>
+  Every unit of `RANGE` costs GPU performance. If you're adding many lights to a
+  long straight, keep ranges tight and use `FADE_AT` aggressively to cull lights
+  that are far from the camera.
+</Note>
+
+## `[LIGHTING]` — Global Multipliers
+
+The `[LIGHTING]` section adjusts scene-wide lighting behaviour for the track. It applies on top of whatever CSP's renderer calculates.
+
+<ParamField path="BOUNCED_LIGHT_MULT" type="r,g,b,brightness" default="1,1,1,1">
+  Multiplier applied to the bounced-light contribution from the ground. Use this
+  to tint or intensify reflected light across the whole circuit. Example:
+  `1,1,1,0.1` reduces the overall bounce brightness to 10 %.
+</ParamField>
+
+<ParamField path="CAR_LIGHTS_LIT_MULT" type="float" default="1.0">
+  Scales how much car headlights illuminate the track surface.
+</ParamField>
+
+<ParamField path="LIT_MULT" type="float" default="1.0">
+  Global multiplier on all dynamic light contributions (from both `LIGHT_X` and
+  `LIGHT_SERIES_X` sources).
+</ParamField>
+
+<ParamField path="SPECULAR_MULT" type="float" default="1.0">
+  Global specular multiplier. Raise this on wet-looking or polished tracks to
+  increase specular hotspots under lights.
+</ParamField>
+
+```ini
+[LIGHTING]
+BOUNCED_LIGHT_MULT  = 1, 1, 1, 0.1
+CAR_LIGHTS_LIT_MULT = 1.0
+LIT_MULT            = 1.0
+SPECULAR_MULT       = 1.0
+```
+
+---
+
+## `[MATERIAL_ADJUSTMENT_X]` — Emissive Glow (No FPS Cost)
+
+`MATERIAL_ADJUSTMENT_X` lets you change shader properties on named materials or meshes depending on a condition. The most common use is to drive `ksEmissive` on lamp-head meshes so they visually glow at night.
+
+Each `KEY_N` / `VALUE_N` / `VALUE_N_OFF` triple modifies one shader property. `VALUE_N` is the value used when the condition is active (e.g. night-time); `VALUE_N_OFF` is the value when the condition is inactive (e.g. daytime).
+
+<ParamField path="MATERIALS" type="string">
+  Comma-separated list of material names to affect. Supports `?` wildcard.
+  Cannot be used together with `MESHES`.
+</ParamField>
+
+<ParamField path="MESHES" type="string">
+  Comma-separated list of mesh names to affect. Supports `?` wildcard. Cannot
+  be used together with `MATERIALS`.
+</ParamField>
+
+<ParamField path="KEY_N" type="string">
+  Shader property to modify. Valid values include `ksEmissive`, `ksDiffuse`,
+  `ksAmbient`, `ksAlphaRef`, `ksSpecular`, `ksSpecularEXP`, `fresnelC`,
+  `fresnelMaxLevel`, `fresnelEXP`, `alpha`.
+</ParamField>
+
+<ParamField path="VALUE_N" type="r,g,b,brightness or float">
+  Value to set on the property when the condition is **active**. Colors are
+  specified as `r,g,b,brightness`; a single float is also valid.
+</ParamField>
+
+<ParamField path="VALUE_N_OFF" type="r,g,b,brightness or float">
+  Value to restore when the condition is **inactive** (e.g. during the day).
+</ParamField>
+
+<ParamField path="CONDITION" type="string">
+  Name of a `[CONDITION_X]` to gate this adjustment. When the condition's value
+  is 1 the `VALUE_N` values are active; when 0 the `VALUE_N_OFF` values apply.
+</ParamField>
+
+<ParamField path="ACTIVE" type="0 or 1" default="1">
+  Set to `0` to temporarily disable this block.
+</ParamField>
+
+<ParamField path="BLEND_MODE" type="string">
+  Optionally override the material's alpha blend mode. Valid values:
+  `ALPHA_TEST`, `ALPHA_BLEND`, or leave empty to keep the original.
+</ParamField>
+
+<ParamField path="RANGE" type="float">
+  If set, only meshes within this distance (in metres) from the camera are
+  affected, saving performance on large material lists.
+</ParamField>
+
+<ParamField path="SPOT" type="float">
+  Cone half-angle (degrees 0–360) when combined with a range-based cut-off.
+</ParamField>
+
+<ParamField path="SPOT_SHARPNESS" type="float 0–1">
+  Edge sharpness of the spot cone. `1` = hard edge, `0` = very soft falloff.
+</ParamField>
+
+<ParamField path="RANGE_GRADIENT_OFFSET" type="float 0–1">
+  Controls how quickly intensity drops toward the edge of the range. Higher
+  values keep the light strong further out.
+</ParamField>
+
+<ParamField path="VISIBILITY_LEVEL" type="0, 1, or 2">
+  BLM Lights app visibility tier for this entry. Has no effect in-game.
+</ParamField>
+
+<ParamField path="DESCRIPTION" type="string">
+  Human-readable label shown in the BLM Lights app.
+</ParamField>
+
+### Example — Emissive Glow for BMW Bridge Spots (Nordschleife)
+
+```ini
+; Step 1: make the lamp-head meshes glow at night
+[MATERIAL_ADJUSTMENT_18]
+ACTIVE           = 1
+DESCRIPTION      = bridge ads: BMW
+MESHES           = NSLITS_bmwspots
+KEY_0            = ksEmissive
+VALUE_0          = 255, 255, 255, 0.5
+VALUE_0_OFF      = 0
+KEY_1            = ksAlphaRef
+VALUE_1          = -193
+VALUE_1_OFF      = 0
+CONDITION        = NIGHT_SMOOTH
+VISIBILITY_LEVEL = 0
+```
+
+---
+
+## `[LIGHT_SERIES_X]` — Mesh-Based Light Arrays
+
+`LIGHT_SERIES_X` is the workhorse of track lighting. It reads the world positions of all mesh instances matching `MESHES` (or all material instances matching `MATERIALS`), clusters them according to `CLUSTER_THRESHOLD`, and places one dynamic spotlight at each cluster centre. The result is a single config block that can illuminate dozens of identical lamppost meshes scattered around the circuit.
+
+<ParamField path="MESHES" type="string">
+  Comma-separated mesh name filter (supports `?` wildcard). One light per
+  cluster is placed at the average position of all matched mesh instances.
+</ParamField>
+
+<ParamField path="MATERIALS" type="string">
+  Alternative to `MESHES`: match by material name instead.
+</ParamField>
+
+<ParamField path="CLUSTER_THRESHOLD" type="float" default="10">
+  Minimum distance in metres between two calculated light positions. A smaller
+  value places more individual lights (higher quality, lower FPS). For widely
+  spaced floodlights use `20–100`; for tightly packed pit-lane spots use `1–4`.
+</ParamField>
+
+<ParamField path="COLOR" type="r,g,b,brightness">
+  Light colour and intensity when the condition is active. Components can be
+  in the 0–255 range or 0–1 range — CSP normalises both.
+</ParamField>
+
+<ParamField path="COLOR_OFF" type="r,g,b,brightness" default="0">
+  Colour when the condition is inactive. Typically `0` (off).
+</ParamField>
+
+<ParamField path="CONDITION" type="string">
+  Name of a condition that gates this light series. Use `NIGHT_SMOOTH` for the
+  standard night-time switch; see the [Conditions](/tracks/conditions) page for
+  custom conditions.
+</ParamField>
+
+<ParamField path="DIRECTION" type="x,y,z or NORMAL">
+  Direction vector the spotlight points in. Use `0,-1,0` for straight down.
+  Set to `NORMAL` to automatically use each mesh's surface normal.
+</ParamField>
+
+<ParamField path="DIRECTION_OFFSET" type="x,y,z">
+  Additional directional skew applied on top of a `NORMAL`-based direction.
+</ParamField>
+
+<ParamField path="DIRECTION_ALTER" type="x,y,z">
+  Inverts the direction vector — only meaningful when `DIRECTION = NORMAL`.
+</ParamField>
+
+<ParamField path="OFFSET" type="x,y,z" default="0,0,0">
+  World-space offset applied to each computed light position. Useful for
+  moving the emission point from the mesh centre to where the actual bulb is.
+</ParamField>
+
+<ParamField path="RANGE" type="float">
+  Radius in metres over which the light casts illumination. **More range =
+  more FPS cost.** Keep this as small as possible for the desired effect.
+</ParamField>
+
+<ParamField path="FADE_AT" type="float (metres)">
+  Distance from the camera at which this light series begins to fade out.
+  Lights that are far from the player can safely use a low value (e.g. `300`)
+  to avoid rendering invisible lights.
+</ParamField>
+
+<ParamField path="FADE_SMOOTH" type="float 0–100">
+  Length of the fade transition in metres. A value of `0` is an abrupt
+  cut; `100` gives a very gradual fade.
+</ParamField>
+
+<ParamField path="SPOT" type="float (degrees)" default="180">
+  Half-angle of the spotlight cone. `180` is a full hemisphere (omni-
+  directional); `60` gives a tight beam.
+</ParamField>
+
+<ParamField path="SPOT_SHARPNESS" type="float 0–1" default="0.5">
+  Edge softness of the cone. `1.0` = very hard edge; `0.0` = soft penumbra.
+</ParamField>
+
+<ParamField path="RANGE_GRADIENT_OFFSET" type="float 0–1">
+  Controls how light intensity decays with distance. Higher values keep
+  brightness up near the edge of the range (similar to a harder spotlight).
+</ParamField>
+
+<ParamField path="DIFFUSE_CONCENTRATION" type="float 0–1">
+  Shadow generation intensity. `1` produces hard shadows; `0` spreads light
+  uniformly with minimal shadow contribution.
+</ParamField>
+
+<ParamField path="SPECULAR_MULT" type="float" default="1.0">
+  Per-series override for specular contribution. Set to `0` to make marshall
+  post lights non-specular and avoid glare artefacts.
+</ParamField>
+
+<ParamField path="SINGLE_FREQUENCY" type="float 0–1">
+  For coloured light sources: sets a single colour frequency channel
+  (0 = mixed, 1 = fully tinted). Useful for sodium or fluorescent lamps.
+</ParamField>
+
+<ParamField path="ACTIVE" type="0 or 1" default="1">
+  Disable this section without removing it.
+</ParamField>
+
+<ParamField path="VISIBILITY_LEVEL" type="0, 1, or 2">
+  BLM Lights app tier. `0` = always shown; `1` = medium detail; `2` = high
+  detail only.
+</ParamField>
+
+<ParamField path="DESCRIPTION" type="string">
+  BLM Lights app label for this series.
+</ParamField>
+
+### Example — BMW Bridge Spotlight Series (Nordschleife)
+
+```ini
+; Step 2: add the actual light cone from the same mesh
+[LIGHT_SERIES_7]
+ACTIVE                = 1
+DESCRIPTION           = bridge ads: BMW
+MESHES                = NSLITS_bmwspots
+OFFSET                = 0, 0, 0
+DIRECTION             = 0, -1, 0
+SPOT                  = 155
+SPOT_SHARPNESS        = 0.5
+RANGE                 = 20
+RANGE_GRADIENT_OFFSET = 0.2
+FADE_AT               = 800
+FADE_SMOOTH           = 30
+CLUSTER_THRESHOLD     = 4
+DIFFUSE_CONCENTRATION = 0.7
+COLOR                 = 228, 228, 205, 0.05
+COLOR_OFF             = 0
+CONDITION             = NIGHT_SMOOTH
+VISIBILITY_LEVEL      = 0
+```
+
+### Real-World Example — Red Bull Ring Marshall Box Lights
+
+The following series drives the orange overhead floodlights on one of the marshall boxes at Red Bull Ring. The warm colour, tight cluster threshold, and moderate range are typical for marshalling-post fixtures:
+
+```ini
+[LIGHT_SERIES_0]
+MESHES                = marshall_box_LOW_3, marshall_box_HI_3
+OFFSET                = 2, 2, -1
+CLUSTER_THRESHOLD     = 4
+COLOR                 = 1, 0.833, 0.611, 6
+COLOR_OFF             = 0
+SPOT                  = 140
+RANGE                 = 20
+FADE_AT               = 300
+FADE_SMOOTH           = 25
+RANGE_GRADIENT_OFFSET = 0.7
+SPOT_SHARPNESS        = 0.7
+DIRECTION             = -0.05, -1, -0.05
+SPECULAR_MULT         = 0
+DIFFUSE_CONCENTRATION = 0.3
+CONDITION             = NIGHT_SMOOTH
+ACTIVE                = 1
+```
+
+---
+
+## `[LIGHT_X]` — Single Point or Line Light
+
+`LIGHT_X` places a single dynamic light at an explicit world-space coordinate, rather than deriving positions from mesh data. Use it for one-off fixtures like tower warning beacons, entrance archways, or any light that does not correspond directly to a mesh.
+
+<ParamField path="POSITION" type="x,y,z">
+  World-space position of the light. Mutually exclusive with `LINE_FROM` /
+  `LINE_TO`.
+</ParamField>
+
+<ParamField path="LINE_FROM" type="x,y,z">
+  Start of a line segment. CSP distributes evenly spaced lights along the
+  segment from `LINE_FROM` to `LINE_TO`.
+</ParamField>
+
+<ParamField path="LINE_TO" type="x,y,z">
+  End of the line segment (used together with `LINE_FROM`).
+</ParamField>
+
+<ParamField path="DIRECTION" type="x,y,z">
+  Direction vector the spotlight points. Only used when `POSITION` is set
+  (line lights use the segment direction automatically).
+</ParamField>
+
+<ParamField path="COLOR" type="r,g,b,brightness">
+  Base colour and intensity of the light.
+</ParamField>
+
+<ParamField path="COLOR_FROM" type="r,g,b,brightness">
+  Start colour for an animated colour transition (used with `COLOR_TO`).
+</ParamField>
+
+<ParamField path="COLOR_TO" type="r,g,b,brightness">
+  End colour for the colour transition.
+</ParamField>
+
+<ParamField path="CONDITION" type="string">
+  Name of a condition that gates this light.
+</ParamField>
+
+<ParamField path="RANGE" type="float">
+  Illumination radius in metres. More range = more FPS cost.
+</ParamField>
+
+<ParamField path="FADE_AT" type="float (metres)">
+  Camera distance at which the light starts to fade out.
+</ParamField>
+
+<ParamField path="FADE_SMOOTH" type="float 0–100">
+  Metres over which the fade transition is applied.
+</ParamField>
+
+<ParamField path="SPOT" type="float (degrees)">
+  Spotlight cone half-angle. Omit or set to `180` for a point (omni) light.
+</ParamField>
+
+<ParamField path="SPOT_SHARPNESS" type="float 0–1">
+  Edge sharpness of the spotlight cone.
+</ParamField>
+
+<ParamField path="RANGE_GRADIENT_OFFSET" type="float 0–1">
+  How brightness decays toward the edge of the light range.
+</ParamField>
+
+<ParamField path="DIFFUSE_CONCENTRATION" type="float 0–1">
+  Shadow generation intensity for this light.
+</ParamField>
+
+<ParamField path="SPECULAR_MULT" type="float" default="1.0">
+  Specular contribution multiplier.
+</ParamField>
+
+<ParamField path="SINGLE_FREQUENCY" type="float 0–1">
+  Colour frequency for coloured-light sources.
+</ParamField>
+
+<ParamField path="ACTIVE" type="0 or 1" default="1">
+  Disable without deleting.
+</ParamField>
+
+<ParamField path="VISIBILITY_LEVEL" type="0, 1, or 2">
+  BLM Lights app visibility tier.
+</ParamField>
+
+<ParamField path="DESCRIPTION" type="string">
+  BLM Lights app label.
+</ParamField>
+
+### Example — Tower Warning Light with Animated Colour
+
+```ini
+[LIGHT_0]
+ACTIVE      = 1
+DESCRIPTION = Tower flashing light
+POSITION    = -3.79, 349, -6053.28
+DIRECTION   = 0, -1, 0
+COLOR_FROM  = 255, 255, 255, 0.03
+COLOR_TO    = 255, 100, 0, 0.06
+CONDITION   = HAZARDS
+RANGE       = 25
+FADE_AT     = 500
+FADE_SMOOTH = 30
+SPOT        = 360
+```
+
+### Example — Line of Lights Along a Gantry
+
+```ini
+[LIGHT_1]
+ACTIVE      = 1
+DESCRIPTION = Start-finish gantry underside
+LINE_FROM   = 590.5, 101, 182
+LINE_TO     = 615.74, 101, 133
+COLOR       = 255, 240, 210, 0.8
+CONDITION   = NIGHT_SMOOTH
+RANGE       = 15
+FADE_AT     = 400
+FADE_SMOOTH = 50
+SPOT        = 120
+SPOT_SHARPNESS = 0.6
+```
+
+---
+
+## `[LIGHT_POLLUTION]` — Atmospheric Glow Dome
+
+`LIGHT_POLLUTION` adds a wide area of atmospheric haze above the track, simulating the sky glow seen above lit circuits at night. Unlike `LIGHT_X`, it does not illuminate ground geometry — it is purely a sky-layer effect.
+
+<ParamField path="ACTIVE" type="0 or 1" default="0">
+  Enable or disable the light pollution dome.
+</ParamField>
+
+<ParamField path="COLOR" type="r,g,b">
+  RGB colour of the sky glow (values 0–1). **Do not include a brightness
+  component here** — only `r,g,b` is accepted.
+</ParamField>
+
+<ParamField path="DENSITY" type="float" default="0.2">
+  Opacity/intensity of the haze dome. Values around `0.2–0.4` look realistic
+  for a lit motorsport venue.
+</ParamField>
+
+<ParamField path="RADIUS_KM" type="float" default="0.5">
+  Radius of the dome in kilometres.
+</ParamField>
+
+<ParamField path="RELATIVE_POSITION" type="x,y,z (km)">
+  Offset of the dome centre from the track origin, in **kilometres**. Use this
+  to shift the haze over the main grandstand or pit complex.
+</ParamField>
+
+```ini
+[LIGHT_POLLUTION]
+ACTIVE            = 1
+COLOR             = 1.0, 0.55, 0.16
+DENSITY           = 0.35
+RADIUS_KM         = 6.0
+RELATIVE_POSITION = 0, 0, 0.0
+```

@@ -1,0 +1,212 @@
+---
+title: "Common Car Templates: Shared INI Config Includes"
+sidebarTitle: "Common Templates"
+description: "Reuse shared car configuration blocks — GT3 lights, selflighting, tyre patterns, and PBR material presets — via the CSP INCLUDE directive."
+---
+
+The `config/cars/common/` directory ships with CSP and contains reusable INI fragments that cover the most common lighting rigs, material presets, and feature setups. Rather than copy-pasting dozens of lines into every car config, you reference these files with an `[INCLUDE]` directive and then override only the parameters that differ for your specific car.
+
+---
+
+## Using the INCLUDE Directive
+
+There are two equivalent syntaxes. The bracket form is preferred for clarity:
+
+```ini
+; Bracket form (recommended)
+[INCLUDE: common/selflighting.ini]
+
+; Legacy key-value form (also supported)
+[INCLUDE]
+INCLUDE = common/selflighting.ini
+```
+
+After the include you can follow it immediately with section overrides. Parameters you set in those override sections take precedence over the defaults declared inside the included file.
+
+```ini
+[INCLUDE: common/materials_carpaint.ini]
+CarPaintMaterial    = EXT_Carpaint
+CarPaintVersionAware = 4
+DisableDev          = 1
+
+; Override one sub-template from inside the included file
+[Material_CarPaint_Solid]
+PROP_... = extExtraSharpLocalReflections, -0.001
+```
+
+---
+
+## Common File Reference
+
+<CardGroup cols={2}>
+  <Card title="selflighting.ini" icon="sun">
+    Defines the `SelfLight` and `SelfLight_Headlights` templates that add short-range extra lights positioned at the headlight lenses to simulate self-illumination on the car body and surroundings. Include this file and then define a `[SelfLight_Headlights]` section with your car's headlight position and mirror offset.
+  </Card>
+  <Card title="gt3_lights.ini" icon="car">
+    A ready-made interior ambient light rig for GT3-class cars. Declares a blue-tinted extra light (`LIGHT_EXTRA_0_GT3_INTERIOR`) bound to the headlight switch, providing the characteristic cockpit glow seen in modern GT3 machines. Exposes `HeadlightsMesh`, `InteriorLightColor`, `InteriorLightDiffuse`, and `InteriorLightPos` as configurable defaults.
+  </Card>
+  <Card title="gt3_tyres_kunos.ini" icon="circle">
+    Tyre texture and material overrides tuned for Kunos GT3 car assets. Applies correct PBR tyre surface properties and sets realistic rubber reflectance values.
+  </Card>
+  <Card title="gt3_exhaust_glow.ini" icon="flame">
+    Adds an emissive glow effect to exhaust pipes, simulating heat from hot exhaust gases during deceleration and hard acceleration.
+  </Card>
+  <Card title="materials_base.ini" icon="layer-group">
+    Low-level helper templates and functions shared by all material libraries (`materials_pbr.ini`, `materials_carpaint.ini`, `materials_glass.ini`, etc.). Normally you do not include this file directly — it is pulled in automatically by the higher-level templates.
+  </Card>
+  <Card title="materials_pbr.ini" icon="sparkles">
+    Provides the `[TEMPLATE: Material_PBR]` and `[TEMPLATE: _Base_Material_PBR]` templates for applying the `fuPBR` physically-based shader to any car mesh. See the [Materials](/cars/materials) page for full parameter documentation.
+  </Card>
+  <Card title="materials_carpaint.ini" icon="paintbrush">
+    Houses the `Material_CarPaint` family of templates — Solid, Metallic, Pearl, Matte, Chrome, Chameleon, ChromaFlair, Old, and Rainbow — all based on the `smCarPaint` shader. See the [Materials](/cars/materials) page.
+  </Card>
+  <Card title="materials_glass.ini" icon="window">
+    Provides `Material_Glass`, `Material_GlassSide`, `Material_MultiEmissiveGlass`, and `Material_PhotoelasticGlass` templates using the `smGlass` shader family. Supports IOR, tint, mask pass, and refraction.
+  </Card>
+  <Card title="materials_interior.ini" icon="couch">
+    Interior surface templates: `Material_InteriorPBR`, `Material_InteriorPBRDetail`, and convenience presets for `Leather_v2`, `Fabric_v2`, `Velvet_v2`, `Carpet_v2`, `Plastic_v2`, `Aluminium_v2`, `Metal_v2`, `Carbon`, `DigitalScreen`, and more.
+  </Card>
+  <Card title="f1_generic.ini" icon="flag-checkered">
+    Generic F1 car light configuration covering typical open-wheel headlight/rain-light positions and emissive setups. A good starting point for single-seater formulas without specific marque configs.
+  </Card>
+  <Card title="f1_lights.ini" icon="bolt">
+    Detailed headlight and turn-indicator setup for F1-specification cars, including DRS and cockpit indicator emissives.
+  </Card>
+  <Card title="no_popup_lights.ini" icon="eye-slash">
+    Disables popup headlight animations globally for a car, useful when the KN5 has popup geometry but the config should treat the lights as fixed. The BMW M3 E30 uses this to prevent ghost animation from base `lights.ksanim`.
+  </Card>
+  <Card title="tyre_patterns.ini" icon="tire">
+    Tyre blur texture patterns for the `TYRES_FX` system, providing common tread pattern overlays applied during high-speed rotation.
+  </Card>
+  <Card title="navigators.ini" icon="map">
+    In-car GPS/navigator display system. Renders a live minimap or satellite map onto a named dashboard mesh.
+  </Card>
+  <Card title="navigators_layouts.ini" icon="map-pin">
+    Defines layout templates for the navigator display (map orientation, zoom presets, UI chrome).
+  </Card>
+  <Card title="navigators_maps.ini" icon="map-location">
+    Map data source configuration for the navigator system. Controls resolution, clip plane, and satellite imagery brightness.
+  </Card>
+</CardGroup>
+
+---
+
+## Detailed Examples
+
+### selflighting.ini — Headlight Self-Illumination
+
+The self-lighting template creates short-range extra lights at the headlight positions so the car body glows when headlights are on. The template defaults are sensible; you only need to set `POSITION`, `MIRROR`, and `BOUND_TO` for your specific car.
+
+```ini
+[INCLUDE: common/selflighting.ini]
+
+; Override the headlight self-light for the RUF Yellowbird
+[SelfLight_Headlights]
+POSITION              = 0, 0.64, 1.76
+MIRROR                = 0.618
+DIRECTION             = 0, 0.3, 1
+AFFECTS_TRACK         = 0
+DIFFUSE_CONCENTRATION = 1
+BOUND_TO              = Light_Front
+SPOT_SHARPNESS        = 0.5
+SPOT                  = 160
+COLOR                 = 10
+SPECULAR_MULT         = 0
+RANGE                 = 0.5
+```
+
+The template's built-in defaults already set `SELF_LIGHTNING = exterioronly`, `FADE_AT = 10`, `FADE_SMOOTH = 10`, `SPOT = 190`, `RANGE = 0.5`, and a few others, so you only override what differs.
+
+---
+
+### gt3_lights.ini — GT3 Interior Cockpit Glow
+
+Including this file adds a single blue-tinted extra light that activates with the headlight switch, casting ambient cockpit illumination typical of modern GT3 cars:
+
+```ini
+[INCLUDE: common/gt3_lights.ini]
+
+; Optionally override the defaults
+HeadlightsMesh     = head_lights
+InteriorLightColor = #3333ff
+InteriorLightDiffuse = 10
+InteriorLightSpecular = 3
+InteriorLightPos   = 0.2, 1.0, -0.4
+```
+
+The generated light uses `AFFECTS_TRACK = INTERIOR_ONLY` — a special CSP value that restricts the light to interior meshes and prevents it from illuminating the car exterior or road.
+
+---
+
+### Full Car Example — BMW M3 E30
+
+The BMW M3 E30 config demonstrates typical multi-include usage combining popup light suppression, carpaint, glass, licence plate lighting, and interior materials:
+
+```ini
+; Suppress the factory popup light animation
+[INCLUDE]
+INCLUDE = common/no_popup_lights.ini
+
+; Car paint — metallic variant, version 4 defaults
+[INCLUDE: common/materials_carpaint.ini]
+CarPaintMaterial     = Carpaint
+CarPaintVersionAware = 4
+DisableDev           = 1
+
+[Material_CarPaint_Metallic]
+; No extra overrides needed — defaults look great
+
+; Exterior glass
+[INCLUDE: common/materials_glass.ini]
+ExteriorGlassMaterials = Glass
+
+; European-style licence plate lighting
+[INCLUDE: common/materials_license_plate.ini]
+[Material_LicensePlate_Europe]
+
+; Interior PBR surfaces
+[INCLUDE: common/materials_interior.ini]
+```
+
+---
+
+### Full Car Example — RUF Yellowbird
+
+The Yellowbird uses selflighting, carpaint, glass (with mask pass for tint), licence plate, and interior includes all together:
+
+```ini
+[INCLUDE: common/selflighting.ini]
+
+[SelfLight_Headlights]
+POSITION  = 0, 0.64, 1.76
+MIRROR    = 0.618
+DIRECTION = 0, 0.3, 1
+BOUND_TO  = Light_Front
+SPOT      = 160
+COLOR     = 10
+RANGE     = 0.5
+
+[INCLUDE: common/materials_carpaint.ini]
+CarPaintMaterial     = EXT_Carpaint
+CarPaintVersionAware = 4
+DisableDev           = 1
+
+[Material_CarPaint_Solid]
+PROP_... = extExtraSharpLocalReflections, -0.001
+
+[INCLUDE: common/materials_glass.ini]
+[Material_Glass]
+Materials = EXT_Glass
+FilmIOR   = 2.2
+MaskPass  = 1
+
+[INCLUDE: common/materials_license_plate.ini]
+[Material_LicensePlate_Europe]
+LightLayout = AT_SIDES
+
+[INCLUDE: common/materials_interior.ini]
+```
+
+<Note>
+  All paths in `[INCLUDE]` are relative to the `config/cars/common/` directory. You do not need to specify the full path — `common/selflighting.ini` is sufficient from any car config file.
+</Note>

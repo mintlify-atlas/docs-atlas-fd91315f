@@ -1,0 +1,97 @@
+{
+  "projectType": "general",
+  "projectName": "Custom Shaders Patch — Extension Config",
+  "projectDescription": "A collection of configuration files, Lua scripts, and resources for the Assetto Corsa Custom Shaders Patch (CSP), enabling enhanced lighting, weather effects, PBR materials, and visual improvements for cars and tracks.",
+  "theme": "aspen",
+  "primaryColor": "#0065ff",
+  "lightColor": "#145cbc",
+  "darkColor": "#84a4dc",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "file-structure"
+            ]
+          },
+          {
+            "group": "Car Configuration",
+            "pages": [
+              "cars/overview",
+              "cars/lights",
+              "cars/materials",
+              "cars/instruments",
+              "cars/common-templates"
+            ]
+          },
+          {
+            "group": "Track Configuration",
+            "pages": [
+              "tracks/overview",
+              "tracks/lights",
+              "tracks/conditions",
+              "tracks/bounced-light"
+            ]
+          },
+          {
+            "group": "Visual Extensions",
+            "pages": [
+              "extensions/weather-fx",
+              "extensions/rain-fx",
+              "extensions/extra-fx",
+              "extensions/particles-fx",
+              "extensions/grass-fx",
+              "extensions/lighting-fx"
+            ]
+          },
+          {
+            "group": "Lua Scripting",
+            "pages": [
+              "lua/overview",
+              "lua/weather-controllers",
+              "lua/chaser-camera"
+            ]
+          },
+          {
+            "group": "Contributing",
+            "pages": [
+              "contributing/adding-car-configs",
+              "contributing/adding-track-configs"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Car light configuration (headlights, brake lights, emissive materials, turning indicators)",
+    "Track light configuration with dynamic day/night conditions",
+    "PBR material templates for cars and tracks",
+    "Weather FX system with 24-hour cycle support and Lua-scriptable controllers",
+    "Rain FX with windscreen drops, puddles, and wet track rendering",
+    "Grass FX with procedurally generated grass",
+    "Extra FX post-processing (TAA, SSLR, motion blur, ambient occlusion)",
+    "Particles FX with soft particles and improved smoke",
+    "Vertex AO patches for prebaked ambient shadows",
+    "Automatic distribution via Content Manager API"
+  ],
+  "publicApiSurface": [
+    "[LIGHT_X] — individual point/spot light definition for cars and tracks",
+    "[LIGHT_SERIES_X] — series of lights tied to geometry meshes for tracks",
+    "[MATERIAL_ADJUSTMENT_X] — emissive/material property override tied to conditions",
+    "[CONDITION_X] — time/weather-based activation condition for track elements",
+    "[BOUNCED_LIGHT] — ground light bounce configuration for tracks",
+    "[EMISSIVE_LIGHT_X] — emissive car light (brake, headlight, hazard, etc.)",
+    "[TEMPLATE: Material_PBR] — PBR material template for car surfaces",
+    "[TEMPLATE: Material_CarPaint] — car paint PBR template",
+    "[BASIC] ENABLED — master enable/disable toggle present in every extension module",
+    "[INCLUDE] — INI file inclusion directive for shared config blocks",
+    "script.update(dt) — Lua entry point for weather controllers and camera scripts",
+    "ac.setConditionsSet2(conditions) — Lua API to push weather conditions to the sim"
+  ]
+}

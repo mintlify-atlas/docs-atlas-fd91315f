@@ -1,0 +1,224 @@
+---
+title: "Particles FX: Soft Smoke, Sparks, and Heat Shimmer"
+sidebarTitle: "Particles FX"
+description: "Configure CSP Particles FX for depth-buffered soft particles, sorted smoke, sparks, heat shimmer, and shadow-casting particles in Assetto Corsa."
+---
+
+Particles FX overhauls Assetto Corsa's entire particle pipeline. It uses the depth buffer to blend particles smoothly against geometry (eliminating the hard polygon-clip edge on smoke), adds a fully reworked sorted smoke and dust system with shadow casting, replaces the spark simulation with a higher-fidelity physics-driven version, introduces anti-lag and limiter flames, and updates the heat-shimmer effect with additional sources. Everything is configured through `particles_fx.ini`. This page documents all user-facing sections and highlights the VRAM and performance implications of each.
+
+## Enabling Particles FX
+
+```ini
+[BASIC]
+ENABLED=1
+```
+
+<ParamField path="ENABLED" type="integer" default="1">
+  Master switch for the entire Particles FX module. Setting this to `0` reverts to Assetto Corsa's original unmodified particle system — no soft blending, no sorted smoke, no CSP sparks.
+</ParamField>
+
+---
+
+## AC Particles — Core Enhancements
+
+These options modify the behaviour of Assetto Corsa's own particle emitters (exhaust smoke, tyre smoke, skid marks).
+
+```ini
+[AC_PARTICLES]
+SOFT_PARTICLES=1
+REWORKED_HEAT_SHIMMER=1
+```
+
+<ParamField path="SOFT_PARTICLES" type="integer" default="1">
+  Uses the depth buffer to fade particles smoothly as they intersect geometry, eliminating the sharp polygon-clip edge that appears when smoke touches the ground or walls. This is one of the most visible improvements in Particles FX and has a small GPU overhead.
+</ParamField>
+
+<ParamField path="REWORKED_HEAT_SHIMMER" type="integer" default="1">
+  Expands the heat-shimmer effect with additional sources (hot tarmac, brake discs, exhausts) and more realistic activation conditions. **Requires a restart** to take effect after changing.
+</ParamField>
+
+---
+
+## Sparks
+
+CSP replaces Assetto Corsa's sprite-based sparks with a physics-simulated particle system that includes gravity, aerodynamic drag, and force interactions with wheel and body geometry.
+
+```ini
+[SPARKS]
+ENABLED=1
+LIMIT=40000
+SPAWN_RATE=1000
+```
+
+<ParamField path="SPARKS/ENABLED" type="integer" default="1">
+  Activates the reworked sparks system. When disabled, AC's original sparks are shown instead.
+</ParamField>
+
+<ParamField path="SPARKS/LIMIT" type="integer" default="40000">
+  Maximum number of simultaneous spark particles in the scene. Valid range: **1,000 – 40,000** (rounded to 1,000). Higher values look more spectacular but consume more VRAM and GPU compute time. A value of 8,000 corresponds to roughly **1 MB of VRAM**; the default 40,000 uses approximately **5 MB**.
+</ParamField>
+
+<ParamField path="SPARKS/SPAWN_RATE" type="integer" default="1000">
+  How many new spark particles are emitted per second during contact. Valid range: **200 – 2,000** (rounded to 100). Lower values produce sparser, more realistic spark trails; higher values give a dramatic shower effect.
+</ParamField>
+
+---
+
+## Smoke
+
+The reworked smoke system renders tyre smoke, dust, and exhaust plumes as sorted, depth-correct particles with optional shadow casting. Because particles are depth-sorted every frame, performance scales with particle count.
+
+```ini
+[SMOKE]
+ENABLED=1
+USE_CULLING=1
+USE_DOWNSCALING=0
+QUANTITY_SCALE=1
+SIZE_LIMIT_SCALE=0.8
+SIMPLIFIED_SHADING=0
+LONG_LASTING_SMOKE=1
+FILL_SCREEN=1
+HEATING_EXTRA=0
+CAST_SHADOWS=1
+CAST_AMBIENT_SHADOWS=1
+SHOW_IN_MIRRORS=1
+CLIP_BY_GLASS=0
+```
+
+<ParamField path="SMOKE/ENABLED" type="integer" default="1">
+  Activates the reworked smoke and dust renderer. When disabled, AC's original unsorted smoke is used.
+</ParamField>
+
+<ParamField path="USE_CULLING" type="integer" default="1">
+  Skips rendering of smoke particles that are outside the view frustum or occluded. Strongly recommended; turning it off may cause significant performance regression on tracks with heavy smoke.
+</ParamField>
+
+<ParamField path="USE_DOWNSCALING" type="integer" default="0">
+  Renders smoke at half the output resolution when the scene allows it, then upscales. Can recover meaningful frame rate on GPU-limited systems at the cost of slightly softer smoke edges. Not recommended for VR (`USE_DOWNSCALING_VR` is a separate option).
+</ParamField>
+
+<ParamField path="QUANTITY_SCALE" type="number" default="1">
+  Limits how many smoke particles may accumulate near each other. Range: **0.1 – 1.2**. Lower values reduce the maximum local particle density, which helps performance but makes smoke look patchier. Values above `1.0` allow denser accumulation.
+</ParamField>
+
+<ParamField path="SIZE_LIMIT_SCALE" type="number" default="0.8">
+  Caps the on-screen size of individual smoke particles close to the camera. Range: **0.5 – 1.0**. Increase this if you want heavy smoke to genuinely block vision; lower it to prevent particles from taking up the full screen at close range.
+</ParamField>
+
+<ParamField path="SIMPLIFIED_SHADING" type="integer" default="0">
+  Switches to a cheaper shading model for smoke. Recommended on low-end GPUs that struggle with the default physically based shading pass. Produces noticeably flatter-looking smoke.
+</ParamField>
+
+<ParamField path="LONG_LASTING_SMOKE" type="integer" default="1">
+  When enabled, intense wheel smoke and dust accumulate in the surrounding area and persist for several minutes, creating localised fog in heavy traffic. Adds depth to the simulation but increases steady-state particle counts.
+</ParamField>
+
+<ParamField path="FILL_SCREEN" type="integer" default="1">
+  Adds a fullscreen overlay pass when the camera is deeply embedded inside a smoke cloud, replacing expensive per-particle rendering near the camera with a faster flat fill. Generally improves performance in heavy smoke.
+</ParamField>
+
+<ParamField path="HEATING_EXTRA" type="number" default="0">
+  Adds extra heat coloration to tyre smoke for a more arcade-like appearance. Range: **0.0 – 2.0**. Leave at `0` for physically accurate cold-smoke colouring.
+</ParamField>
+
+<ParamField path="CAST_SHADOWS" type="integer" default="1">
+  Allows smoke particles to cast shadows onto the track and car surfaces from the sun and track lights.
+</ParamField>
+
+<ParamField path="CAST_AMBIENT_SHADOWS" type="integer" default="1">
+  Adds soft ambient occlusion-style shadows beneath smoke clouds even when direct shadow casting is not applicable.
+</ParamField>
+
+<ParamField path="SHOW_IN_MIRRORS" type="integer" default="1">
+  Renders smoke in rear-view mirrors. Adds GPU cost proportional to mirror quality setting; disable to recover frame rate in crowded race starts.
+</ParamField>
+
+<ParamField path="CLIP_BY_GLASS" type="integer" default="0">
+  Prevents smoke from appearing inside a car's cabin (clipped at the glass boundary). Requires **Extra FX** to be active. Disabling this means smoke will visually pass through windows, which looks incorrect but avoids the Extra FX dependency.
+</ParamField>
+
+<Note>
+  The internal smoke particle limit (`[SMOKE_DEV] LIMIT=8000`) means the system allocates memory for up to 8,000 sorted particles at a time. **Every 8,000 particles consumes approximately 1 MB of VRAM.** Unlike the sparks limit, this value is a developer option and is not exposed in the UI. The sorting overhead also means you should keep particle counts lower than you might for unsorted effects.
+</Note>
+
+---
+
+## Flames
+
+```ini
+[FLAMES]
+ENABLED=1
+USE_DYNAMIC_SHADOWS=1
+```
+
+<ParamField path="FLAMES/ENABLED" type="integer" default="1">
+  Enables the reworked exhaust flame emitter system, which fires during anti-lag, rev limiter, and flat-shift events.
+</ParamField>
+
+<ParamField path="FLAMES/USE_DYNAMIC_SHADOWS" type="integer" default="1">
+  Casts dynamic shadows for the light emitted by flames. Requires **Extra FX** and **TAA** to be active. Produces dramatic flickering shadows from exhaust flames at night but has a small additional GPU cost.
+</ParamField>
+
+---
+
+## Fireworks
+
+```ini
+[FIREWORKS]
+ENABLED=1
+BEHAVIOUR=2
+IMPLEMENTATION=holidays
+LIMIT=40000
+LIMIT_SMOKE=1000
+SHOW_IN_MIRRORS=1
+```
+
+<ParamField path="FIREWORKS/ENABLED" type="integer" default="1">
+  Enables the fireworks particle system, driven by a Lua script located in `extension/lua/fireworks/`.
+</ParamField>
+
+<ParamField path="FIREWORKS/BEHAVIOUR" type="integer" default="2">
+  Bitmask controlling when fireworks are triggered.
+
+  | Value | Trigger condition                        |
+  |-------|------------------------------------------|
+  | `1`   | Always active                            |
+  | `2`   | Holidays only (default)                  |
+  | `4`   | After finishing the race                 |
+  | `6`   | Holidays **and** after finish            |
+  | `8`   | At night                                 |
+  | `12`  | At night **and** after finish            |
+</ParamField>
+
+<ParamField path="FIREWORKS/LIMIT" type="integer" default="40000">
+  Maximum firework particle count. Range: **10,000 – 40,000** (rounded to 10,000).
+</ParamField>
+
+---
+
+## Solid Pieces
+
+```ini
+[PIECES]
+ENABLED=1
+LIMIT=60000
+CAST_SHADOWS=1
+SHOW_IN_MIRRORS=1
+SHOW_IN_EXTRAFX=1
+```
+
+<ParamField path="PIECES/ENABLED" type="integer" default="1">
+  Enables solid debris particles: dirt clods, grass blades, and collision shards.
+</ParamField>
+
+<ParamField path="PIECES/LIMIT" type="integer" default="60000">
+  Maximum number of solid piece particles. Range: **1,000 – 120,000** (rounded to 1,000).
+</ParamField>
+
+<ParamField path="PIECES/CAST_SHADOWS" type="integer" default="1">
+  Allows debris pieces to cast shadows.
+</ParamField>
+
+<ParamField path="PIECES/SHOW_IN_EXTRAFX" type="integer" default="1">
+  Renders solid pieces during the Extra FX pass so they receive correct depth-of-field and other post-processing.
+</ParamField>

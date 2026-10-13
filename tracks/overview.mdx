@@ -1,0 +1,99 @@
+---
+title: "Track Configuration Overview for CSP Extension Config"
+sidebarTitle: "Overview"
+description: "Learn how to structure track INI configs in CSP: file placement, naming, available sections, and live-reload during an Assetto Corsa session."
+---
+
+Track configuration files are the primary way to add dynamic lighting, material adjustments, bounced light, and other CSP enhancements to any Assetto Corsa circuit. Each track gets its own INI file that CSP reads at session start, and changes to the file are hot-reloaded mid-session whenever you save, making it quick to iterate without restarting the game.
+
+## File Placement and Naming
+
+Every track config lives inside Assetto Corsa's `extension/config/tracks/` folder. The filename must exactly match the track's folder name (the folder found inside `assettocorsa/content/tracks/`). For example, the configuration for `content/tracks/ks_brands_hatch/` is placed at:
+
+```
+assettocorsa/
+└── extension/
+    └── config/
+        └── tracks/
+            ├── ks_brands_hatch.ini      ← per-track config
+            ├── ks_red_bull_ring.ini
+            └── common/
+                ├── conditions.ini       ← shared named conditions
+                └── materials_track.ini  ← shared material helpers
+```
+
+<Note>
+  The `common/` subfolder holds shared include files. Any track config can pull
+  these in with an `[INCLUDE]` section so you don't have to copy the standard
+  named conditions (like `NIGHT_SMOOTH`) into every file.
+</Note>
+
+## Extra KN5 Model Files
+
+Some track configs rely on additional `.kn5` mesh files that are placed **alongside** the track config INI or alongside the original track KN5. These supplementary models typically contain emissive light meshes, glass replacements, or other geometry that isn't present in the original track. For example, the Nürburgring config references:
+
+```ini
+[MODEL_REPLACEMENT_0]
+FILE    = ks_nordschleife.kn5
+INSERT  = ks_nordschleife__lights.kn5
+INSERT_AFTER = light_A_LODB_2b_KSLAYER1
+```
+
+The supplementary file `ks_nordschleife__lights.kn5` must be present in the same directory as the track KN5 for the config to work. If the file is missing, the `[MODEL_REPLACEMENT_X]` section is silently ignored.
+
+## Available Sections
+
+A track INI file can contain any combination of the sections below. Sections with `_X` in their name are numbered (`_0`, `_1`, `_2` … up to `_15` or higher) so you can define as many instances as needed.
+
+| Section | Purpose |
+|---|---|
+| `[LIGHTING]` | Global multipliers for bounced light, car headlight contribution, and specular. |
+| `[LIGHT_X]` | A single point or line light placed at a world-space position. |
+| `[LIGHT_SERIES_X]` | An array of point lights derived from named meshes or materials. |
+| `[MATERIAL_ADJUSTMENT_X]` | Drives emissive and other shader properties on named materials — no FPS cost. |
+| `[CONDITION_X]` | Named condition (0–1 value) driven by time, sun angle, weather, or racing flag. |
+| `[BOUNCED_LIGHT]` | Defines which surface materials participate in the track's light-map bounce. |
+| `[LIGHT_POLLUTION]` | Adds a wide atmospheric light-pollution dome above the circuit. |
+| `[ABOUT]` | Metadata consumed by Blamer's BLM Lights app. |
+| `[INCLUDE]` | Pulls in another INI file (e.g. `common/conditions.ini`). |
+
+### `[ABOUT]` — BLM Lights App Compatibility
+
+The `[ABOUT]` section is purely informational metadata. CSP itself ignores it, but **Blamer's BLM Lights** app reads it to display authorship and version information in its interface. If you distribute a track lighting config, adding this section helps users identify and update it:
+
+```ini
+[ABOUT]
+AUTHOR        = YourName
+VERSION       = 1.0
+DATE_RELEASE  = 2024-01-15
+LIGHTS_COUNT  = 48/48/96     ; low/medium/high visibility levels
+NOTES         = Ks Red Bull Ring lighting overhaul
+```
+
+### `[INCLUDE]` — Shared Files
+
+Include entries load another INI file relative to the track config's own directory. The standard practice is to always include `common/conditions.ini` so that the built-in named conditions (`NIGHT_SMOOTH`, `ALWAYS_ON`, `HAZARDS`, etc.) are available throughout your config:
+
+```ini
+[INCLUDE]
+INCLUDE = common/conditions.ini, common/mytrack_conditions.ini
+```
+
+Multiple includes can be comma-separated or placed in separate `[INCLUDE]` sections.
+
+## Sub-pages
+
+<CardGroup cols={2}>
+  <Card title="Lights" icon="lightbulb" href="/tracks/lights">
+    Configure LIGHT\_X point lights, LIGHT\_SERIES\_X mesh-based series,
+    MATERIAL\_ADJUSTMENT\_X emissive glow, and LIGHT\_POLLUTION.
+  </Card>
+  <Card title="Conditions" icon="clock" href="/tracks/conditions">
+    Define time-of-day, sun-angle, weather, and racing-flag conditions to gate
+    when lights turn on or change colour.
+  </Card>
+  <Card title="Bounced Light" icon="sun" href="/tracks/bounced-light">
+    Set up ground-reflected light from trackside lamps — surface materials,
+    occluders, and clip points.
+  </Card>
+</CardGroup>
